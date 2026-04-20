@@ -46,6 +46,17 @@ impl EventHandler for Bot {
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::Command(command) = interaction {
+            let user = &command.user;
+            let guild_id = command.guild_id.map(|id| id.to_string()).unwrap_or_else(|| "DM".to_string());
+
+            info!(
+                "Command '{}' invoked by {} ({}) in {}",
+                command.data.name,
+                user.name,
+                user.id,
+                guild_id
+            );
+
             let result = match command.data.name.as_str() {
                 "ping" => {
                     command
