@@ -1,0 +1,26 @@
+[package]
+name = "pumpkinplus"
+version = "0.0.2"
+edition = "2024"
+authors = ["Xodium"]
+description = "Minecraft Pumpkin plugin that enhances the base gameplay"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+pumpkin-plugin-api = { version = "0.1.0", git = "https://github.com/Pumpkin-MC/Pumpkin" }
+tracing = "0.1"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+figment = { version = "0.10", features = ["json"] }
+
+[profile.release]
+lto = true
+strip = true
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "warn"
