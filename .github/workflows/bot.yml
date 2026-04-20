@@ -1,4 +1,4 @@
-name: Xodium CI/CD - Plugin
+name: Xodium CI/CD - Bot
 
 on:
   push:
@@ -29,7 +29,6 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@d197c158264056996cfba74a9c2d93886346edc3
         with:
           toolchain: stable
-          target: wasm32-wasip2
           components: rustfmt, clippy
 
       - id: run_lint
@@ -62,18 +61,17 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-wasm32-wasip2-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - id: setup_rust
         name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@d197c158264056996cfba74a9c2d93886346edc3
         with:
           toolchain: stable
-          target: wasm32-wasip2
 
       - id: build_artifact
         name: Build Artefact
-        run: cargo build --release --target wasm32-wasip2 --timings
+        run: cargo build --release --timings
         shell: bash
 
       - id: get_name
@@ -91,8 +89,8 @@ jobs:
         name: Upload Artifact
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: ${{ steps.get_name.outputs.NAME }}-wasm32-wasip2
-          path: target/wasm32-wasip2/release/${{ steps.get_name.outputs.NAME }}.wasm
+          name: ${{ steps.get_name.outputs.NAME }}-linux-x64
+          path: target/release/${{ steps.get_name.outputs.NAME }}
           retention-days: 7
 
   nightly_release:

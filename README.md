@@ -6,47 +6,54 @@
       <img src="https://gist.githubusercontent.com/illyrius666/a38f03b4fbe9b43faa2c5623137c1250/raw/3a1410e77807097bcfbcf963822b41fadd495d9f/xodium.svg" alt="Xodium Logo" width="200">
     </a>
   <br /><br />
-  Pumpkin+
+  Streamocracy
   <br />
   <br />
 </h1>
 
-<h4 align="center">Minecraft Pumpkin plugin that enhances the base gameplay</h4><br />
+<h4 align="center">Democracy, but for your stream</h4><br />
 
 <div align="center">
 
 [![Contributors][contributors_shield_url]][contributors_url]
 [![Issues][issues_shield_url]][issues_url]
-[![Roadmap][roadmap_shield_url]][roadmap_url]
-[![Docs][docs_shield_url]][docs_url]
+[![License][license_shield_url]][license_url]
 </div>
 
 ## Table of Contents
 
 - [Architecture](ARCHITECTURE.md)
-- [Documentation](#documentation)
+- [Installation](#installation)
+- [Usage](#usage)
 - [Built With](#built-with)
 - [Code of Conduct][code_of_conduct_url]
 - [Contributing][contributing_url]
 - [License][license_url]
 - [Security][security_url]
 
-## Documentation
+## Installation
 
-Generate and view the documentation locally:
+1. Clone the repository
+2. Set up your Discord bot token:
+   ```bash
+   export DISCORD_TOKEN="your-bot-token"
+   ```
+   Or create a `.env` file with:
+   ```
+   DISCORD_TOKEN=your-bot-token
+   ```
+3. Build and run:
+   ```bash
+   cargo run --release
+   ```
 
-```bash
-cargo doc --open
-```
+## Usage
 
-Or build and serve:
+The bot uses Discord slash commands. Type `/` in chat to see available commands:
 
-```bash
-cargo doc --no-deps
-cd target/doc && python -m http.server 8080
-```
-
-Open http://localhost:8080/pumpkinplus in your browser.
+| Command | Description                  |
+|---------|------------------------------|
+| `/ping` | Bot responds with "Pong! 🏓" |
 
 ## Built With
 
@@ -57,30 +64,24 @@ Open http://localhost:8080/pumpkinplus in your browser.
 
 <p align="right"><a href="#readme-top">▲</a></p>
 
-[built_with_shield_url]: https://skillicons.dev/icons?i=rust,github,githubactions
+[built_with_shield_url]: https://skillicons.dev/icons?i=rust,github
 
 [built_with_url]: https://skillicons.dev
 
-[code_of_conduct_url]: https://github.com/XodiumSoftware/pumpkinplus?tab=coc-ov-file
+[code_of_conduct_url]: https://github.com/XodiumSoftware/streamocracy?tab=coc-ov-file
 
-[contributing_url]: https://github.com/XodiumSoftware/pumpkinplus?tab=contributing-ov-file
+[contributing_url]: https://github.com/XodiumSoftware/streamocracy?tab=contributing-ov-file
 
-[contributors_shield_url]: https://img.shields.io/github/contributors/XodiumSoftware/pumpkinplus?style=for-the-badge&color=blue
+[contributors_shield_url]: https://img.shields.io/github/contributors/XodiumSoftware/streamocracy?style=for-the-badge&color=blue
 
-[contributors_url]: https://github.com/XodiumSoftware/pumpkinplus/graphs/contributors
+[contributors_url]: https://github.com/XodiumSoftware/streamocracy/graphs/contributors
 
-[docs_shield_url]: https://img.shields.io/badge/Docs-Click%20Me!-blue.svg?style=for-the-badge
+[issues_shield_url]: https://img.shields.io/github/issues/XodiumSoftware/streamocracy?style=for-the-badge&color=yellow
 
-[docs_url]: https://pumpkinplus.xodium.org
+[issues_url]: https://github.com/XodiumSoftware/streamocracy/issues
 
-[issues_shield_url]: https://img.shields.io/github/issues/XodiumSoftware/pumpkinplus?style=for-the-badge&color=yellow
+[license_shield_url]: https://img.shields.io/github/license/XodiumSoftware/streamocracy?style=for-the-badge&color=green
 
-[issues_url]: https://github.com/XodiumSoftware/pumpkinplus/issues
+[license_url]: https://github.com/XodiumSoftware/streamocracy?tab=AGPL-3.0-1-ov-file
 
-[license_url]: https://github.com/XodiumSoftware/pumpkinplus?tab=AGPL-3.0-1-ov-file
-
-[roadmap_shield_url]: https://img.shields.io/badge/Roadmap-Click%20Me!-purple.svg?style=for-the-badge
-
-[roadmap_url]: https://github.com/orgs/XodiumSoftware/projects/4
-
-[security_url]: https://github.com/XodiumSoftware/pumpkinplus?tab=security-ov-file
+[security_url]: https://github.com/XodiumSoftware/streamocracy?tab=security-ov-file

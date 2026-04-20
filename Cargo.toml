@@ -1,19 +1,21 @@
 [package]
-name = "pumpkinplus"
-version = "0.0.2"
+name = "streamocracy"
+version = "0.1.0"
 edition = "2024"
 authors = ["Xodium"]
-description = "Minecraft Pumpkin plugin that enhances the base gameplay"
+description = "A simple Discord bot with a single purpose"
 
-[lib]
-crate-type = ["cdylib"]
+[[bin]]
+name = "streamocracy"
+path = "src/main.rs"
 
 [dependencies]
-pumpkin-plugin-api = { version = "0.1.0", git = "https://github.com/Pumpkin-MC/Pumpkin" }
+serenity = { version = "0.12", default-features = false, features = ["client", "gateway", "rustls_backend", "model", "cache"] }
+tokio = { version = "1.52", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1"
-serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
-figment = { version = "0.10", features = ["json"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dotenvy = "0.15"
+anyhow = "1.0"
 
 [profile.release]
 lto = true

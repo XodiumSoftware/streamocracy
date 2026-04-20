@@ -16,5 +16,21 @@ Cargo.lock
 # AI
 .claude/
 
-# Others
-.server/
+# Environment variables (Discord token, secrets)
+.env
+.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local configuration that shouldn't be committed
+config.json
+*.log
