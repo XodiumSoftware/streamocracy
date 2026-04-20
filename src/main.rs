@@ -15,6 +15,10 @@ use serenity::all::{
 use std::env;
 use tracing::{error, info};
 
+mod cmds {
+    pub mod ping;
+}
+
 struct Bot;
 
 #[serenity::async_trait]
@@ -27,9 +31,7 @@ impl EventHandler for Bot {
             .and_then(|id| id.parse::<u64>().ok())
             .map(GuildId::new);
 
-        let commands = vec![
-            CreateCommand::new("ping").description("Check if bot is responsive"),
-        ];
+        let commands = vec![CreateCommand::new("ping").description("Check if bot is responsive")];
 
         if let Some(guild_id) = guild_id {
             match guild_id.set_commands(&ctx.http, commands.clone()).await {
@@ -46,44 +48,23 @@ impl EventHandler for Bot {
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::Command(command) = interaction {
-            let user = &command.user;
-            let guild_id = command.guild_id.map(|id| id.to_string()).unwrap_or_else(|| "DM".to_string());
-
-            info!(
-                "Command '{}' invoked by {} ({}) in {}",
-                command.data.name,
-                user.name,
-                user.id,
-                guild_id
-            );
-
-            let result = match command.data.name.as_str() {
-                "ping" => {
-                    command
-                        .create_response(
-                            &ctx.http,
-                            CreateInteractionResponse::Message(
-                                CreateInteractionResponseMessage::new()
-                                    .content("Pong! 🏓"),
-                            ),
-                        )
-                        .await
-                }
+            match command.data.name.as_str() {
+                "ping" => cmds::ping::run(&ctx, &command).await,
                 _ => {
-                    command
+                    if let Err(e) = command
                         .create_response(
                             &ctx.http,
                             CreateInteractionResponse::Message(
                                 CreateInteractionResponseMessage::new()
-                                    .content("Unknown command"),
+                                    .content("Unknown command")
+                                    .ephemeral(true),
                             ),
                         )
                         .await
+                    {
+                        error!("Failed to respond to unknown command: {}", e);
+                    }
                 }
-            };
-
-            if let Err(e) = result {
-                error!("Failed to respond to slash command: {}", e);
             }
         }
     }
@@ -94,8 +75,8 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
     dotenvy::dotenv().ok();
 
-    let token = env::var("DISCORD_TOKEN")
-        .context("DISCORD_TOKEN environment variable must be set")?;
+    let token =
+        env::var("DISCORD_TOKEN").context("DISCORD_TOKEN environment variable must be set")?;
 
     let intents = GatewayIntents::GUILDS;
 

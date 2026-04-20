@@ -45,12 +45,14 @@ The bot uses Discord slash commands:
 |---------|------------|
 | `/ping` | `Pong! 🏓` |
 
-### Package Structure
+### Project Structure
 
-| Path          | Contents                                           |
-|---------------|----------------------------------------------------|
-| `src/main.rs` | Main entry point, bot event handler, command logic |
-| `src/lib.rs`  | Library exports and documentation                  |
+| Path               | Contents                                         |
+|--------------------|--------------------------------------------------|
+| `src/main.rs`      | Main entry point, bot event handler, inline cmds |
+| `src/cmds/ping.rs` | Ping command implementation                      |
+
+**Note:** The `cmds` module is defined inline in `main.rs` with `mod cmds { pub mod ping; }`. To add new commands, create files in `src/cmds/` and add `pub mod <name>;` inside the inline module block in `main.rs`.
 
 ### Dependencies
 
