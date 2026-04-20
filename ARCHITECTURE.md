@@ -34,33 +34,34 @@ cargo run
 
 **`Bot`** — implements `EventHandler` from `serenity`:
 
-- `ready()` — logs when the bot successfully connects
-- `message()` — handles incoming messages, ignoring bot messages
+- `ready()` — logs when the bot successfully connects and registers slash commands
+- `interaction_create()` — handles slash command interactions
 
 ### Commands
 
-The bot responds to simple text commands:
+The bot uses Discord slash commands:
 
-| Command | Response |
-|---------|----------|
-| `!ping` | `Pong! 🏓` |
+| Command | Response                 |
+|---------|--------------------------|
+| `/ping` | `Pong! 🏓`               |
+| `/help` | Shows available commands |
 
 ### Package Structure
 
-| Path         | Contents                                           |
-|--------------|----------------------------------------------------|
+| Path          | Contents                                           |
+|---------------|----------------------------------------------------|
 | `src/main.rs` | Main entry point, bot event handler, command logic |
 | `src/lib.rs`  | Library exports and documentation                  |
 
 ### Dependencies
 
-| Crate           | Purpose                                   |
-|-----------------|-------------------------------------------|
-| `serenity`      | Discord API client and framework          |
-| `tokio`         | Async runtime                             |
-| `tracing`       | Logging and diagnostics                   |
-| `dotenvy`       | Environment variable loading from `.env`  |
-| `anyhow`        | Error handling                            |
+| Crate      | Purpose                                  |
+|------------|------------------------------------------|
+| `serenity` | Discord API client and framework         |
+| `tokio`    | Async runtime                            |
+| `tracing`  | Logging and diagnostics                  |
+| `dotenvy`  | Environment variable loading from `.env` |
+| `anyhow`   | Error handling                           |
 
 ### Key Conventions
 

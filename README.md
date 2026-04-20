@@ -49,11 +49,12 @@
 
 ## Usage
 
-The bot responds to the following commands:
+The bot uses Discord slash commands. Type `/` in chat to see available commands:
 
-| Command | Description                  |
-|---------|------------------------------|
-| `!ping` | Bot responds with "Pong! 🏓" |
+| Command   | Description                  |
+|-----------|------------------------------|
+| `/ping`   | Bot responds with "Pong! 🏓" |
+| `/help`   | Show available commands      |
 
 ## Built With
 

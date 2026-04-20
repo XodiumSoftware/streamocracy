@@ -67,11 +67,12 @@ cargo run
 
 ### Commands
 
-The bot responds to simple text commands:
+The bot uses Discord slash commands:
 
 | Command | Response   |
 |---------|------------|
-| `!ping` | `Pong! 🏓` |
+| `/ping` | `Pong! 🏓` |
+| `/help` | Shows available commands |
 
 ### Project Structure
 
@@ -88,7 +89,9 @@ src/
 - The release profile enables LTO and strips symbols for minimal binary size
 - Bot token is read from the `DISCORD_TOKEN` environment variable (required)
 - Use `tracing` macros (`info!`, `error!`, etc.) for logging
-- Bot ignores messages from other bots (`msg.author.bot` check)
+- Slash commands are registered in `ready()` event
+- Commands can be registered globally or in a specific guild (set `GUILD_ID` for instant testing)
+- Handle interactions via `interaction_create()` event
 
 ## Testing
 
