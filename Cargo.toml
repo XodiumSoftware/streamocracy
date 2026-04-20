@@ -10,18 +10,11 @@ name = "streamocracy"
 path = "src/main.rs"
 
 [dependencies]
-# Discord bot framework
 serenity = { version = "0.12", default-features = false, features = ["client", "gateway", "rustls_backend", "model", "cache"] }
-tokio = { version = "1.43", features = ["macros", "rt-multi-thread"] }
-
-# Logging
+tokio = { version = "1.52", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-
-# Environment variables
 dotenvy = "0.15"
-
-# Error handling
 anyhow = "1.0"
 
 [profile.release]
