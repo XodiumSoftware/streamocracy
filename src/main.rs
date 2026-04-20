@@ -29,7 +29,6 @@ impl EventHandler for Bot {
 
         let commands = vec![
             CreateCommand::new("ping").description("Check if bot is responsive"),
-            CreateCommand::new("help").description("Show available commands"),
         ];
 
         if let Some(guild_id) = guild_id {
@@ -55,17 +54,6 @@ impl EventHandler for Bot {
                             CreateInteractionResponse::Message(
                                 CreateInteractionResponseMessage::new()
                                     .content("Pong! 🏓"),
-                            ),
-                        )
-                        .await
-                }
-                "help" => {
-                    command
-                        .create_response(
-                            &ctx.http,
-                            CreateInteractionResponse::Message(
-                                CreateInteractionResponseMessage::new()
-                                    .content("**Available Commands**\n• `/ping` - Check if bot is responsive\n• `/help` - Show this help message"),
                             ),
                         )
                         .await

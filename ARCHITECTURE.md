@@ -41,10 +41,9 @@ cargo run
 
 The bot uses Discord slash commands:
 
-| Command | Response                 |
-|---------|--------------------------|
-| `/ping` | `Pong! 🏓`               |
-| `/help` | Shows available commands |
+| Command | Response   |
+|---------|------------|
+| `/ping` | `Pong! 🏓` |
 
 ### Package Structure
 

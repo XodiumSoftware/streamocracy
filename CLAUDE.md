@@ -72,7 +72,6 @@ The bot uses Discord slash commands:
 | Command | Response   |
 |---------|------------|
 | `/ping` | `Pong! 🏓` |
-| `/help` | Shows available commands |
 
 ### Project Structure
 
