@@ -11,7 +11,7 @@
   <br />
 </h1>
 
-<h4 align="center">A simple Discord bot built with Rust</h4><br />
+<h4 align="center">Democracy, but for your stream</h4><br />
 
 <div align="center">
 
@@ -51,8 +51,8 @@
 
 The bot responds to the following commands:
 
-| Command | Description |
-|---------|-------------|
+| Command | Description                  |
+|---------|------------------------------|
 | `!ping` | Bot responds with "Pong! 🏓" |
 
 ## Built With
