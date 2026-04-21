@@ -70,12 +70,32 @@ impl Utils {
                 .add_option(
                     CreateCommandOption::new(CommandOptionType::User, "user", "User to votekick")
                         .required(true),
+                )
+                .add_option(
+                    CreateCommandOption::new(
+                        CommandOptionType::Integer,
+                        "duration",
+                        "Poll duration in seconds (default: 60)",
+                    )
+                    .min_int_value(10)
+                    .max_int_value(300)
+                    .required(false),
                 ),
             CreateCommand::new("vk")
                 .description("Alias for votekick")
                 .add_option(
                     CreateCommandOption::new(CommandOptionType::User, "user", "User to votekick")
                         .required(true),
+                )
+                .add_option(
+                    CreateCommandOption::new(
+                        CommandOptionType::Integer,
+                        "duration",
+                        "Poll duration in seconds (default: 60)",
+                    )
+                    .min_int_value(10)
+                    .max_int_value(300)
+                    .required(false),
                 ),
         ]
     }

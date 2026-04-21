@@ -5,13 +5,11 @@ use serenity::all::{
 use serenity::prelude::Mentionable;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 use tokio::time::sleep;
 use tracing::{error, info, warn};
-
-// Active votekicks: message_id -> (target_user_id, guild_id, channel_id, end_timestamp)
-use std::sync::LazyLock;
 
 /// (target_user_id, guild_id, channel_id, end_timestamp)
 type VotekickInfo = (u64, u64, u64, u64);
@@ -28,6 +26,7 @@ pub async fn start_votekick(
     command: &CommandInteraction,
     target_user_id: UserId,
     channel_id: ChannelId,
+    duration_secs: u64,
 ) {
     let guild_id = match command.guild_id {
         Some(id) => id,
@@ -70,7 +69,7 @@ pub async fn start_votekick(
         return;
     }
 
-    let end_time = SystemTime::now() + Duration::from_secs(60);
+    let end_time = SystemTime::now() + Duration::from_secs(duration_secs);
     let end_timestamp = end_time
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -81,7 +80,7 @@ pub async fn start_votekick(
             "Vote to kick **{}** from the voice channel?\n\nReact with ✅ to vote **Yes**\nReact with ❌ to vote **No**",
             target_name
         ))
-        .field("Duration", "60 seconds", false)
+        .field("Duration", format!("{} seconds", duration_secs), false)
         .footer(serenity::all::CreateEmbedFooter::new(format!(
             "Initiated by {}",
             command.user.name
@@ -135,7 +134,7 @@ pub async fn start_votekick(
 
     let ctx_clone = ctx.clone();
     tokio::spawn(async move {
-        sleep(Duration::from_secs(60)).await;
+        sleep(Duration::from_secs(duration_secs)).await;
         check_poll_results(&ctx_clone, message_id).await;
     });
 

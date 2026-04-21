@@ -75,6 +75,15 @@ pub async fn run(ctx: &Context, command: &CommandInteraction) {
         .and_then(|opt| opt.value.as_user_id())
         .expect("User option is required");
 
+    // Get optional duration (default: 60 seconds, min: 10, max: 300)
+    let duration = command
+        .data
+        .options
+        .get(1)
+        .and_then(|opt| opt.value.as_i64())
+        .map(|v| v.clamp(10, 300) as u64)
+        .unwrap_or(60);
+
     let user_channel_id = match get_user_voice_channel(ctx, guild_id, user.id) {
         Some(cid) => cid,
         None => {
@@ -118,9 +127,9 @@ pub async fn run(ctx: &Context, command: &CommandInteraction) {
     }
 
     info!(
-        "Votekick starting by {} targeting {} in channel {}",
-        user.name, target_user_id, user_channel_id
+        "Votekick starting by {} targeting {} in channel {} (duration: {}s)",
+        user.name, target_user_id, user_channel_id, duration
     );
 
-    super::poll::start_votekick(ctx, command, target_user_id, user_channel_id).await;
+    super::poll::start_votekick(ctx, command, target_user_id, user_channel_id, duration).await;
 }
