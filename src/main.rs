@@ -33,10 +33,7 @@ struct Bot {
 
 #[serenity::async_trait]
 impl EventHandler for Bot {
-    async fn ready(&self,
-        ctx: Context,
-        ready: Ready,
-    ) {
+    async fn ready(&self, ctx: Context, ready: Ready) {
         info!("Bot is connected as {}", ready.user.name);
 
         let commands = Utils::create_command_list(&self.config);
@@ -44,20 +41,13 @@ impl EventHandler for Bot {
         Utils::register_commands(&ctx, self.config.guild_id(), commands).await;
     }
 
-    async fn interaction_create(&self,
-        ctx: Context,
-        interaction: Interaction,
-    ) {
+    async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::Command(command) = interaction {
             match command.data.name.as_str() {
                 "ping" => ping::cmd::run(&ctx, &command).await,
-                "votekick" | "vk" => {
-                    votekick::cmd::run(&ctx, &command, &self.config).await
-                }
+                "votekick" | "vk" => votekick::cmd::run(&ctx, &command, &self.config).await,
                 _ => {
-                    Utils::ephemeral_response(
-                        &ctx.http, &command, "Unknown command"
-                    ).await;
+                    Utils::ephemeral_response(&ctx.http, &command, "Unknown command").await;
                 }
             }
         }
@@ -74,8 +64,7 @@ async fn main() -> anyhow::Result<()> {
         | GatewayIntents::GUILD_MEMBERS
         | GatewayIntents::GUILD_MESSAGE_REACTIONS;
 
-    let mut client = Client::builder(&config.discord_token, intents
-        )
+    let mut client = Client::builder(&config.discord_token, intents)
         .event_handler(Bot { config })
         .await
         .context("Failed to create Discord client")?;

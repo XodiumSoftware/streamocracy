@@ -13,9 +13,7 @@ pub async fn run(ctx: &Context, command: &CommandInteraction) {
 
     info!(
         "Command 'ping' invoked by {} ({}) in {}",
-        user.name,
-        user.id,
-        guild_id
+        user.name, user.id, guild_id
     );
 
     if let Err(e) = command
