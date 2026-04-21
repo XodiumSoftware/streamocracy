@@ -74,14 +74,8 @@ impl Config {
         Ok(config)
     }
 
-    /// Get the path to the config file.
-    /// Checks `STREAMOCRACY_CONFIG` environment variable first,
-    /// then falls back to the executable directory.
+    /// Get the path to the config file (executable directory)
     fn config_path() -> Result<PathBuf> {
-        if let Ok(config_path) = env::var("STREAMOCRACY_CONFIG") {
-            return Ok(PathBuf::from(config_path));
-        }
-
         let exe_path = env::current_exe().context("Failed to get current executable path")?;
         let exe_dir = exe_path
             .parent()
