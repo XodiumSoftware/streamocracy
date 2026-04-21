@@ -42,7 +42,7 @@ jobs:
 
       - id: run_sccache_cache
         name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@9e326e83d0794706275427f65c7a65e8001d093
+        uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad
 
       - id: run_lint
         name: Run Lint
@@ -83,7 +83,7 @@ jobs:
 
       - id: run_sccache_cache
         name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@9e326e83d0794706275427f65c7a65e8001d093
+        uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad
 
       - id: build_artifact
         name: Build Artefact
