@@ -1,4 +1,4 @@
-name: Xodium CI/CD - Rust
+name: Xodium CI/CD
 
 on:
   push:
@@ -201,12 +201,16 @@ jobs:
           done
         shell: bash
 
-  docs_build:
-    name: Build Documentation
+  docs:
+    name: Documentation
     needs: [ build ]
     runs-on: ubuntu-latest
     environment:
-      name: "${{ github.ref_name }}"
+      name: github-pages
+      url: "${{ steps.deployment.outputs.page_url }}"
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     steps:
       - id: checkout
         name: Checkout
@@ -234,17 +238,6 @@ jobs:
         with:
           path: target/doc/
 
-  docs_deploy:
-    name: Deploy Documentation
-    needs: [ docs_build ]
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: "${{ steps.deployment.outputs.page_url }}"
-    concurrency:
-      group: pages
-      cancel-in-progress: false
-    steps:
       - id: deployment
         name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v5
