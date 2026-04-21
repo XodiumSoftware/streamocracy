@@ -1,3 +1,4 @@
+use crate::config::Config;
 use serenity::all::{
     CommandInteraction, Context, CreateInteractionResponse, CreateInteractionResponseMessage,
 };
@@ -50,7 +51,7 @@ fn check_target_user(
 }
 
 /// Handle the votekick command.
-pub async fn run(ctx: &Context, command: &CommandInteraction) {
+pub async fn run(ctx: &Context, command: &CommandInteraction, config: &Config) {
     let user = &command.user;
     let guild_id = command
         .guild_id
@@ -75,14 +76,19 @@ pub async fn run(ctx: &Context, command: &CommandInteraction) {
         .and_then(|opt| opt.value.as_user_id())
         .expect("User option is required");
 
-    // Get optional duration (default: 60 seconds, min: 10, max: 300)
+    // Get optional duration from config defaults
     let duration = command
         .data
         .options
         .get(1)
         .and_then(|opt| opt.value.as_i64())
-        .map(|v| v.clamp(10, 300) as u64)
-        .unwrap_or(60);
+        .map(|v| {
+            v.clamp(
+                config.min_votekick_duration as i64,
+                config.max_votekick_duration as i64,
+            ) as u64
+        })
+        .unwrap_or(config.default_votekick_duration);
 
     let user_channel_id = match get_user_voice_channel(ctx, guild_id, user.id) {
         Some(cid) => cid,

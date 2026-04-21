@@ -1,5 +1,6 @@
 //! Utility functions and helpers for the Streamocracy bot
 
+use crate::config::Config;
 use serenity::all::{
     Command, CommandInteraction, CommandOptionType, Context, CreateCommand, CreateCommandOption,
     CreateInteractionResponse, CreateInteractionResponseMessage, GuildId,
@@ -52,17 +53,13 @@ impl Utils {
         }
     }
 
-    /// Get the guild ID from an environment variable
-    /// Returns None if the variable is not set or invalid
-    pub fn guild_id_from_env(var_name: &str) -> Option<GuildId> {
-        std::env::var(var_name)
-            .ok()
-            .and_then(|id| id.parse::<u64>().ok())
-            .map(GuildId::new)
-    }
+    /// Create a standard set of bot commands using config values
+    pub fn create_command_list(config: &Config) -> Vec<CreateCommand> {
+        let duration_description = format!(
+            "Poll duration in seconds (default: {})",
+            config.default_votekick_duration
+        );
 
-    /// Create a standard set of bot commands
-    pub fn create_command_list() -> Vec<CreateCommand> {
         vec![
             CreateCommand::new("ping").description("Check if bot is responsive"),
             CreateCommand::new("votekick")
@@ -75,10 +72,10 @@ impl Utils {
                     CreateCommandOption::new(
                         CommandOptionType::Integer,
                         "duration",
-                        "Poll duration in seconds (default: 60)",
+                        &duration_description,
                     )
-                    .min_int_value(10)
-                    .max_int_value(300)
+                    .min_int_value(config.min_votekick_duration)
+                    .max_int_value(config.max_votekick_duration)
                     .required(false),
                 ),
             CreateCommand::new("vk")
@@ -91,10 +88,10 @@ impl Utils {
                     CreateCommandOption::new(
                         CommandOptionType::Integer,
                         "duration",
-                        "Poll duration in seconds (default: 60)",
+                        &duration_description,
                     )
-                    .min_int_value(10)
-                    .max_int_value(300)
+                    .min_int_value(config.min_votekick_duration)
+                    .max_int_value(config.max_votekick_duration)
                     .required(false),
                 ),
         ]

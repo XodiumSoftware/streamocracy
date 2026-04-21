@@ -2,17 +2,19 @@
 //!
 //! A single-purpose Discord bot built with Serenity using slash commands.
 //!
-//! ## Environment Variables
+//! ## Configuration
 //!
-//! - `DISCORD_TOKEN` - Your Discord bot token (required)
-//! - `GUILD_ID` - Optional: Set to register commands in a specific guild for faster testing
+//! Configuration is loaded from `config.toml` in the executable directory.
+//! The bot will create a default config file on first run.
 
 use anyhow::Context as AnyhowContext;
 use serenity::all::{Client, Context, EventHandler, GatewayIntents, Interaction, Ready};
-use std::env;
 use tracing::{error, info};
 
+use crate::config::Config;
 use crate::utils::Utils;
+
+mod config;
 
 mod ping {
     pub mod cmd;
@@ -25,26 +27,37 @@ mod votekick {
 
 mod utils;
 
-struct Bot;
+struct Bot {
+    config: Config,
+}
 
 #[serenity::async_trait]
 impl EventHandler for Bot {
-    async fn ready(&self, ctx: Context, ready: Ready) {
+    async fn ready(&self,
+        ctx: Context,
+        ready: Ready,
+    ) {
         info!("Bot is connected as {}", ready.user.name);
 
-        let guild_id = Utils::guild_id_from_env("GUILD_ID");
-        let commands = Utils::create_command_list();
+        let commands = Utils::create_command_list(&self.config);
 
-        Utils::register_commands(&ctx, guild_id, commands).await;
+        Utils::register_commands(&ctx, self.config.guild_id(), commands).await;
     }
 
-    async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
+    async fn interaction_create(&self,
+        ctx: Context,
+        interaction: Interaction,
+    ) {
         if let Interaction::Command(command) = interaction {
             match command.data.name.as_str() {
                 "ping" => ping::cmd::run(&ctx, &command).await,
-                "votekick" | "vk" => votekick::cmd::run(&ctx, &command).await,
+                "votekick" | "vk" => {
+                    votekick::cmd::run(&ctx, &command, &self.config).await
+                }
                 _ => {
-                    Utils::ephemeral_response(&ctx.http, &command, "Unknown command").await;
+                    Utils::ephemeral_response(
+                        &ctx.http, &command, "Unknown command"
+                    ).await;
                 }
             }
         }
@@ -53,21 +66,17 @@ impl EventHandler for Bot {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::new("info"))
-        .init();
-    dotenvy::dotenv().ok();
-
-    let token =
-        env::var("DISCORD_TOKEN").context("DISCORD_TOKEN environment variable must be set")?;
+    // Load configuration and initialize logging
+    let config = config::init().context("Failed to initialize configuration")?;
 
     let intents = GatewayIntents::GUILDS
         | GatewayIntents::GUILD_VOICE_STATES
         | GatewayIntents::GUILD_MEMBERS
         | GatewayIntents::GUILD_MESSAGE_REACTIONS;
 
-    let mut client = Client::builder(&token, intents)
-        .event_handler(Bot)
+    let mut client = Client::builder(&config.discord_token, intents
+        )
+        .event_handler(Bot { config })
         .await
         .context("Failed to create Discord client")?;
 
