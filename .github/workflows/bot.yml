@@ -8,8 +8,6 @@ on:
 permissions:
   contents: read
   packages: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: "${{ github.workflow }}-${{ github.ref }}"
@@ -143,51 +141,3 @@ jobs:
           body: |
             From commit: ${{ github.sha }}
             Generated on: ${{ github.event.head_commit.timestamp }}
-
-  docs_build:
-    name: Build Documentation
-    needs: [ build ]
-    runs-on: ubuntu-latest
-    environment:
-      name: "${{ github.ref_name }}"
-    steps:
-      - id: checkout
-        name: Checkout
-        uses: actions/checkout@v6.0.2
-
-      - id: setup_rust
-        name: Setup Rust
-        uses: actions-rust-lang/setup-rust-toolchain@d197c158264056996cfba74a9c2d93886346edc3
-        with:
-          toolchain: stable
-
-      - id: build_docs
-        name: Build Documentation
-        run: cargo doc --no-deps
-
-      - id: flatten_docs
-        name: Flatten Docs
-        run: |
-          cp -r target/doc/streamocracy/* target/doc/
-          rm -rf target/doc/streamocracy
-
-      - id: upload_artifact
-        name: Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: target/doc/
-
-  docs_deploy:
-    name: Deploy Documentation
-    needs: [ docs_build ]
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: "${{ steps.deployment.outputs.page_url }}"
-    concurrency:
-      group: pages
-      cancel-in-progress: false
-    steps:
-      - id: deployment
-        name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v5
