@@ -1,6 +1,6 @@
 use serenity::all::{
     ChannelId, CommandInteraction, Context, CreateEmbed, CreateInteractionResponse,
-    CreateInteractionResponseMessage, CreateMessage, EditInteractionResponse, ReactionType, UserId,
+    CreateInteractionResponseMessage, ReactionType, UserId,
 };
 use serenity::prelude::Mentionable;
 use std::collections::HashMap;
@@ -54,26 +54,12 @@ pub async fn start_votekick(
     };
     let target_name = &target_member.user.name;
 
-    if let Err(e) = command
-        .create_response(
-            &ctx.http,
-            CreateInteractionResponse::Message(
-                CreateInteractionResponseMessage::new()
-                    .content("Starting votekick...")
-                    .ephemeral(true),
-            ),
-        )
-        .await
-    {
-        error!("Failed to send initial response: {}", e);
-        return;
-    }
-
     let end_time = SystemTime::now() + Duration::from_secs(duration_secs);
     let end_timestamp = end_time
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
+
     let embed = CreateEmbed::default()
         .title("📊 Votekick Started")
         .description(format!(
@@ -85,16 +71,30 @@ pub async fn start_votekick(
             "Initiated by {}",
             command.user.name
         )));
-    let message = match channel_id
-        .send_message(&ctx.http, CreateMessage::new().content("").embed(embed))
+
+    // Send the poll as the command response
+    if let Err(e) = command
+        .create_response(
+            &ctx.http,
+            CreateInteractionResponse::Message(
+                CreateInteractionResponseMessage::new().embed(embed),
+            ),
+        )
         .await
     {
+        error!("Failed to send poll message: {}", e);
+        return;
+    }
+
+    // Get the message ID from the interaction response
+    let message = match command.get_response(&ctx.http).await {
         Ok(m) => m,
         Err(e) => {
-            error!("Failed to send poll message: {}", e);
+            error!("Failed to get response message: {}", e);
             return;
         }
     };
+
     let yes_reaction = ReactionType::Unicode("✅".to_string());
     let no_reaction = ReactionType::Unicode("❌".to_string());
 
@@ -103,17 +103,6 @@ pub async fn start_votekick(
     }
     if let Err(e) = message.react(&ctx.http, no_reaction).await {
         error!("Failed to add no reaction: {}", e);
-    }
-
-    if let Err(e) = command
-        .edit_response(
-            &ctx.http,
-            EditInteractionResponse::new()
-                .content(format!("✅ Votekick started for **{}**!", target_name)),
-        )
-        .await
-    {
-        error!("Failed to edit response: {}", e);
     }
 
     let message_id = message.id.get();
