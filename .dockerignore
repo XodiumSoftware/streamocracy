@@ -1,0 +1,44 @@
+# Git
+.git
+.gitignore
+
+# Rust
+target/
+Cargo.lock
+debug/
+**/*.rs.bk
+*.pdb
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# CI/CD
+.github/
+
+# Documentation
+README.md
+INSTALLATION.md
+ARCHITECTURE.md
+CLAUDE.md
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+SECURITY.md
+
+# Config and secrets (don't include actual config)
+config.toml
+.env
+.env.local
+
+# Logs
+*.log
+
+# Claude
+.claude/

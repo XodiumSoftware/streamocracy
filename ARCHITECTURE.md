@@ -145,5 +145,36 @@ The bot uses a generic `Poll` trait for reaction-based voting:
 - `unsafe_code` is forbidden project-wide (`[lints.rust] unsafe_code = "forbid"`).
 - All Clippy warnings are enabled (`[lints.clippy] all = "warn"`).
 - The release profile enables LTO and strips symbols for minimal binary size.
-- Configuration is loaded from `config.toml` in the executable directory.
+- Configuration is loaded from `config.toml` in the executable directory (or path specified by `STREAMOCRACY_CONFIG` env var).
 - The bot creates a default config file on first run if one doesn't exist.
+
+## Docker
+
+The bot can be run in a Docker container:
+
+```bash
+# Build the image
+docker build -t streamocracy .
+
+# Run with config mounted
+docker run -v $(pwd)/config.toml:/app/config/config.toml:ro streamocracy
+
+# Or use docker-compose
+docker-compose up -d
+```
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `STREAMOCRACY_CONFIG` | Path to config file (default: `/app/config/config.toml`) |
+| `RUST_LOG` | Log level filter (default: `info`) |
+
+### GitHub Container Registry
+
+The image is automatically published to GHCR on every push to main (nightly builds):
+
+```bash
+# Pull nightly
+docker pull ghcr.io/illyrius666/streamocracy:nightly
+```
