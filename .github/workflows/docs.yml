@@ -1,12 +1,11 @@
-name: Streamocracy CI/CD - Docs
+name: Xodium CI/CD - Docs
 
 on:
-  push:
+  workflow_run:
+    workflows: [ "Xodium CI/CD - Release" ]
     branches: [ main ]
-    paths:
-      - "src/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
+    types:
+      - completed
   workflow_dispatch:
 
 concurrency:
@@ -20,6 +19,7 @@ permissions:
 
 jobs:
   build:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
       - id: checkout
