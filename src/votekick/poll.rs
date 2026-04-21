@@ -1,6 +1,6 @@
 use serenity::all::{
     ChannelId, CommandInteraction, Context, CreateEmbed, CreateInteractionResponse,
-    CreateInteractionResponseMessage, CreateMessage, ReactionType, UserId,
+    CreateInteractionResponseMessage, CreateMessage, EditInteractionResponse, ReactionType, UserId,
 };
 use serenity::prelude::Mentionable;
 use std::collections::HashMap;
@@ -56,10 +56,17 @@ pub async fn start_votekick(
     let target_name = &target_member.user.name;
 
     if let Err(e) = command
-        .create_response(&ctx.http, CreateInteractionResponse::Acknowledge)
+        .create_response(
+            &ctx.http,
+            CreateInteractionResponse::Message(
+                CreateInteractionResponseMessage::new()
+                    .content("Starting votekick...")
+                    .ephemeral(true),
+            ),
+        )
         .await
     {
-        error!("Failed to acknowledge command: {}", e);
+        error!("Failed to send initial response: {}", e);
         return;
     }
 
@@ -97,6 +104,17 @@ pub async fn start_votekick(
     }
     if let Err(e) = message.react(&ctx.http, no_reaction).await {
         error!("Failed to add no reaction: {}", e);
+    }
+
+    if let Err(e) = command
+        .edit_response(
+            &ctx.http,
+            EditInteractionResponse::new()
+                .content(format!("✅ Votekick started for **{}**!", target_name)),
+        )
+        .await
+    {
+        error!("Failed to edit response: {}", e);
     }
 
     let message_id = message.id.get();
