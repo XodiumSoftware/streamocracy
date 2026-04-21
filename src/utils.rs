@@ -1,9 +1,8 @@
 //! Utility functions and helpers for the Streamocracy bot
 
-use crate::config::Config;
 use serenity::all::{
-    Command, CommandInteraction, CommandOptionType, Context, CreateCommand, CreateCommandOption,
-    CreateInteractionResponse, CreateInteractionResponseMessage, GuildId,
+    Command, CommandInteraction, Context, CreateCommand, CreateInteractionResponse,
+    CreateInteractionResponseMessage, GuildId,
 };
 use tracing::{error, info};
 
@@ -51,49 +50,5 @@ impl Utils {
                 Err(e) => error!("Failed to register global commands: {}", e),
             }
         }
-    }
-
-    /// Create a standard set of bot commands using config values
-    pub fn create_command_list(config: &Config) -> Vec<CreateCommand> {
-        let duration_description = format!(
-            "Poll duration in seconds (default: {})",
-            config.default_votekick_duration
-        );
-
-        vec![
-            CreateCommand::new("ping").description("Check if bot is responsive"),
-            CreateCommand::new("votekick")
-                .description("Start a votekick")
-                .add_option(
-                    CreateCommandOption::new(CommandOptionType::User, "user", "User to votekick")
-                        .required(true),
-                )
-                .add_option(
-                    CreateCommandOption::new(
-                        CommandOptionType::Integer,
-                        "duration",
-                        &duration_description,
-                    )
-                    .min_int_value(config.min_votekick_duration)
-                    .max_int_value(config.max_votekick_duration)
-                    .required(false),
-                ),
-            CreateCommand::new("vk")
-                .description("Alias for votekick")
-                .add_option(
-                    CreateCommandOption::new(CommandOptionType::User, "user", "User to votekick")
-                        .required(true),
-                )
-                .add_option(
-                    CreateCommandOption::new(
-                        CommandOptionType::Integer,
-                        "duration",
-                        &duration_description,
-                    )
-                    .min_int_value(config.min_votekick_duration)
-                    .max_int_value(config.max_votekick_duration)
-                    .required(false),
-                ),
-        ]
     }
 }
