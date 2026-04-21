@@ -1,7 +1,7 @@
 //! Utility functions and helpers for the Streamocracy bot
 
 use serenity::all::{
-    Command, CommandInteraction, ComponentInteraction, Context, CreateCommand,
+    Command, CommandInteraction, CommandOptionType, Context, CreateCommand, CreateCommandOption,
     CreateInteractionResponse, CreateInteractionResponseMessage, GuildId,
 };
 use tracing::{error, info};
@@ -29,41 +29,6 @@ impl Utils {
         {
             error!("Failed to send ephemeral response: {}", e);
         }
-    }
-
-    /// Send an ephemeral response to a component interaction
-    pub async fn ephemeral_component_response(
-        http: &serenity::all::Http,
-        interaction: &ComponentInteraction,
-        content: impl Into<String>,
-    ) {
-        if let Err(e) = interaction
-            .create_response(
-                http,
-                CreateInteractionResponse::Message(
-                    CreateInteractionResponseMessage::new()
-                        .content(content)
-                        .ephemeral(true),
-                ),
-            )
-            .await
-        {
-            error!("Failed to send component response: {}", e);
-        }
-    }
-
-    /// Log command invocation with user and guild info
-    pub fn log_command(command: &CommandInteraction) {
-        let user = &command.user;
-        let guild_id = command
-            .guild_id
-            .map(|id| id.to_string())
-            .unwrap_or_else(|| "DM".to_string());
-
-        info!(
-            "Command '{}' invoked by {} ({}) in {}",
-            command.data.name, user.name, user.id, guild_id
-        );
     }
 
     /// Register slash commands with Discord
@@ -100,8 +65,18 @@ impl Utils {
     pub fn create_command_list() -> Vec<CreateCommand> {
         vec![
             CreateCommand::new("ping").description("Check if bot is responsive"),
-            CreateCommand::new("votekick").description("Start a votekick"),
-            CreateCommand::new("vk").description("Alias for votekick"),
+            CreateCommand::new("votekick")
+                .description("Start a votekick")
+                .add_option(
+                    CreateCommandOption::new(CommandOptionType::User, "user", "User to votekick")
+                        .required(true),
+                ),
+            CreateCommand::new("vk")
+                .description("Alias for votekick")
+                .add_option(
+                    CreateCommandOption::new(CommandOptionType::User, "user", "User to votekick")
+                        .required(true),
+                ),
         ]
     }
 }

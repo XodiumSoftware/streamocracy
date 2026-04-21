@@ -1,20 +1,20 @@
 use serenity::all::{
-    ChannelId, ComponentInteraction, Context, CreateInteractionResponse,
-    CreateInteractionResponseMessage, CreateMessage, CreatePoll, CreatePollAnswer, UserId,
+    ChannelId, CommandInteraction, Context, CreateEmbed, CreateInteractionResponse,
+    CreateInteractionResponseMessage, CreateMessage, ReactionType, UserId,
 };
 use serenity::prelude::Mentionable;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 use tokio::time::sleep;
 use tracing::{error, info, warn};
 
-// Active votekicks: message_id -> (target_user_id, guild_id, channel_id)
+// Active votekicks: message_id -> (target_user_id, guild_id, channel_id, end_timestamp)
 use std::sync::LazyLock;
 
-/// (target_user_id, guild_id, channel_id)
-type VotekickInfo = (u64, u64, u64);
+/// (target_user_id, guild_id, channel_id, end_timestamp)
+type VotekickInfo = (u64, u64, u64, u64);
 
 /// Thread-safe storage for active votekicks
 type ActiveVotekicks = Arc<Mutex<HashMap<u64, VotekickInfo>>>;
@@ -22,78 +22,65 @@ type ActiveVotekicks = Arc<Mutex<HashMap<u64, VotekickInfo>>>;
 static ACTIVE_VOTEKICKS: LazyLock<ActiveVotekicks> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
-pub async fn handle_select(
+/// Start a new votekick poll for the target user.
+pub async fn start_votekick(
     ctx: &Context,
-    interaction: &ComponentInteraction,
+    command: &CommandInteraction,
     target_user_id: UserId,
+    channel_id: ChannelId,
 ) {
-    info!(
-        "Votekick select triggered by {} targeting {}",
-        interaction.user.name, target_user_id
-    );
-
-    let guild_id = match interaction.guild_id {
+    let guild_id = match command.guild_id {
         Some(id) => id,
         None => {
-            error!("Votekick select used outside guild");
+            error!("Votekick used outside guild");
             return;
         }
     };
-
-    // Get target user info
     let target_member = match guild_id.member(&ctx.http, target_user_id).await {
         Ok(m) => m,
         Err(e) => {
             error!("Failed to get target member: {}", e);
+            let _ = command
+                .create_response(
+                    &ctx.http,
+                    CreateInteractionResponse::Message(
+                        CreateInteractionResponseMessage::new()
+                            .content("Failed to get target user information.")
+                            .ephemeral(true),
+                    ),
+                )
+                .await;
             return;
         }
     };
-
     let target_name = &target_member.user.name;
 
-    // Acknowledge the select menu interaction (ephemeral)
-    if let Err(e) = interaction
-        .create_response(
-            &ctx.http,
-            CreateInteractionResponse::Message(
-                CreateInteractionResponseMessage::new()
-                    .content(format!(
-                        "Starting votekick poll for **{}**...",
-                        target_name
-                    ))
-                    .ephemeral(true),
-            ),
-        )
+    if let Err(e) = command
+        .create_response(&ctx.http, CreateInteractionResponse::Acknowledge)
         .await
     {
-        error!("Failed to acknowledge select: {}", e);
+        error!("Failed to acknowledge command: {}", e);
         return;
     }
 
-    // Create the native Discord poll
-    let yes_answer = CreatePollAnswer::new().text("✅ Yes");
-    let no_answer = CreatePollAnswer::new().text("❌ No");
-
-    let poll = CreatePoll::default()
-        .question(format!(
-            "Vote to kick {} from the voice channel?",
+    let end_time = SystemTime::now() + Duration::from_secs(60);
+    let end_timestamp = end_time
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let embed = CreateEmbed::default()
+        .title("📊 Votekick Started")
+        .description(format!(
+            "Vote to kick **{}** from the voice channel?\n\nReact with ✅ to vote **Yes**\nReact with ❌ to vote **No**",
             target_name
         ))
-        .answers(vec![yes_answer, no_answer])
-        .duration(Duration::from_secs(60)); // TODO: Discord requires minimum 1 hour - need to investigate
-
-    // Send public message with native poll
-    let message = match interaction
-        .channel_id
-        .send_message(
-            &ctx.http,
-            CreateMessage::new()
-                .content(format!(
-                    "📊 **Votekick Started**\n\n*Initiated by {}*",
-                    interaction.user.mention()
-                ))
-                .poll(poll),
-        )
+        .field("Duration", "60 seconds", false)
+        .footer(serenity::all::CreateEmbedFooter::new(format!(
+            "Initiated by {}",
+            command.user.name
+        )));
+    let message = match channel_id
+        .send_message(&ctx.http, CreateMessage::new().content("").embed(embed))
         .await
     {
         Ok(m) => m,
@@ -102,20 +89,35 @@ pub async fn handle_select(
             return;
         }
     };
+    let yes_reaction = ReactionType::Unicode("✅".to_string());
+    let no_reaction = ReactionType::Unicode("❌".to_string());
 
-    // Store the votekick info with channel_id
-    let message_id = message.id.get();
-    let guild_id_u64 = guild_id.get();
-    let channel_id_u64 = interaction.channel_id.get();
-    {
-        let mut active = ACTIVE_VOTEKICKS.lock().await;
-        active.insert(message_id, (target_user_id.get(), guild_id_u64, channel_id_u64));
+    if let Err(e) = message.react(&ctx.http, yes_reaction).await {
+        error!("Failed to add yes reaction: {}", e);
+    }
+    if let Err(e) = message.react(&ctx.http, no_reaction).await {
+        error!("Failed to add no reaction: {}", e);
     }
 
-    // Spawn background task to check results after poll ends
+    let message_id = message.id.get();
+    let guild_id_u64 = guild_id.get();
+    let channel_id_u64 = channel_id.get();
+    {
+        let mut active = ACTIVE_VOTEKICKS.lock().await;
+        active.insert(
+            message_id,
+            (
+                target_user_id.get(),
+                guild_id_u64,
+                channel_id_u64,
+                end_timestamp,
+            ),
+        );
+    }
+
     let ctx_clone = ctx.clone();
     tokio::spawn(async move {
-        sleep(Duration::from_secs(65)).await; // TODO: Wait time should match poll duration
+        sleep(Duration::from_secs(60)).await;
         check_poll_results(&ctx_clone, message_id).await;
     });
 
@@ -125,9 +127,9 @@ pub async fn handle_select(
     );
 }
 
+/// Check poll results and execute the votekick if passed.
 async fn check_poll_results(ctx: &Context, message_id: u64) {
-    // Get votekick info
-    let (target_user_id, guild_id, channel_id) = {
+    let (target_user_id, guild_id, channel_id, _end_timestamp) = {
         let mut active = ACTIVE_VOTEKICKS.lock().await;
         match active.remove(&message_id) {
             Some(info) => info,
@@ -137,12 +139,9 @@ async fn check_poll_results(ctx: &Context, message_id: u64) {
             }
         }
     };
-
     let guild_id = serenity::all::GuildId::new(guild_id);
     let target_user_id = UserId::new(target_user_id);
     let channel_id = ChannelId::new(channel_id);
-
-    // Fetch the message to check poll results
     let message = match channel_id.message(&ctx.http, message_id).await {
         Ok(m) => m,
         Err(e) => {
@@ -150,40 +149,10 @@ async fn check_poll_results(ctx: &Context, message_id: u64) {
             return;
         }
     };
-
-    // Check if poll exists and get results
-    let poll = match message.poll {
-        Some(p) => p,
-        None => {
-            error!("Message has no poll");
-            return;
-        }
-    };
-
-    // Get vote counts from answer_counts
-    let results = match &poll.results {
-        Some(r) => r,
-        None => {
-            error!("Poll has no results");
-            return;
-        }
-    };
-
-    // Get vote counts (answer id 1 = Yes, 2 = No)
-    let yes_votes = results
-        .answer_counts
-        .iter()
-        .find(|r| r.id.get() == 1)
-        .map(|r| r.count)
-        .unwrap_or(0);
-
-    let no_votes = results
-        .answer_counts
-        .iter()
-        .find(|r| r.id.get() == 2)
-        .map(|r| r.count)
-        .unwrap_or(0);
-
+    let yes_reaction = ReactionType::Unicode("✅".to_string());
+    let no_reaction = ReactionType::Unicode("❌".to_string());
+    let yes_votes = get_reaction_count(&ctx.http, &message, &yes_reaction).await;
+    let no_votes = get_reaction_count(&ctx.http, &message, &no_reaction).await;
     let total_votes = yes_votes + no_votes;
 
     info!(
@@ -191,43 +160,51 @@ async fn check_poll_results(ctx: &Context, message_id: u64) {
         message_id, yes_votes, no_votes, total_votes
     );
 
-    // Check minimum 2 votes requirement for yes
+    if let Err(e) = channel_id.delete_message(&ctx.http, message_id).await {
+        warn!("Failed to delete poll message: {}", e);
+    }
+
     if yes_votes < 2 {
-        info!("Votekick did not pass - need minimum 2 yes votes (got {})", yes_votes);
-        let _ = channel_id
-            .say(
-                &ctx.http,
-                format!(
-                    "📊 Votekick results: **Did not pass**\nNeed at least 2 ✅ votes.\nResults: ✅ {} | ❌ {} (Total votes: {})",
-                    yes_votes, no_votes, total_votes
-                ),
-            )
-            .await;
+        info!(
+            "Votekick did not pass - need minimum 2 yes votes (got {})",
+            yes_votes
+        );
+        send_temporary_message(
+            ctx,
+            channel_id,
+            format!(
+                "📊 Votekick results: **Did not pass**\nNeed at least 2 ✅ votes.\nResults: ✅ {} | ❌ {} (Total votes: {})",
+                yes_votes, no_votes, total_votes
+            ),
+            10,
+        )
+        .await;
         return;
     }
 
-    // Check if yes has majority
     if yes_votes <= no_votes {
-        info!("Votekick did not pass (yes: {}, no: {})", yes_votes, no_votes);
-        let _ = channel_id
-            .say(
-                &ctx.http,
-                format!(
-                    "📊 Votekick results: **Did not pass**\n✅ {} | ❌ {} (Total votes: {})\n\nYes votes needed to exceed No votes.",
-                    yes_votes, no_votes, total_votes
-                ),
-            )
-            .await;
+        info!(
+            "Votekick did not pass (yes: {}, no: {})",
+            yes_votes, no_votes
+        );
+        send_temporary_message(
+            ctx,
+            channel_id,
+            format!(
+                "📊 Votekick results: **Did not pass**\n✅ {} | ❌ {} (Total votes: {})\n\nYes votes needed to exceed No votes.",
+                yes_votes, no_votes, total_votes
+            ),
+            10,
+        )
+        .await;
         return;
     }
 
-    // Yes has majority - kick the user
     info!(
         "Votekick passed (yes: {}, no: {}) - kicking {}",
         yes_votes, no_votes, target_user_id
     );
 
-    // Get target member
     let target_member = match guild_id.member(&ctx.http, target_user_id).await {
         Ok(m) => m,
         Err(e) => {
@@ -235,62 +212,129 @@ async fn check_poll_results(ctx: &Context, message_id: u64) {
             return;
         }
     };
-
-    // Check if user is still in a voice channel using cache
     let guild_cache = ctx.cache.guild(guild_id);
     let in_voice = guild_cache
         .map(|g| g.voice_states.contains_key(&target_user_id))
         .unwrap_or(false);
 
     if !in_voice {
-        info!("Target user {} is no longer in a voice channel", target_user_id);
-        let _ = channel_id
-            .say(
-                &ctx.http,
-                format!(
-                    "📊 Votekick passed (✅ {} | ❌ {}) but {} is no longer in the voice channel.",
-                    yes_votes,
-                    no_votes,
-                    target_member.user.mention()
-                ),
-            )
-            .await;
+        info!(
+            "Target user {} is no longer in a voice channel",
+            target_user_id
+        );
+        send_temporary_message(
+            ctx,
+            channel_id,
+            format!(
+                "📊 Votekick passed (✅ {} | ❌ {}) but {} is no longer in the voice channel.",
+                yes_votes,
+                no_votes,
+                target_member.user.mention()
+            ),
+            10,
+        )
+        .await;
         return;
     }
 
-    // Disconnect the user from voice channel
-    if let Err(e) = guild_id
-        .disconnect_member(&ctx.http, target_user_id)
-        .await
-    {
+    if let Err(e) = guild_id.disconnect_member(&ctx.http, target_user_id).await {
         error!("Failed to disconnect member: {}", e);
-        let _ = channel_id
-            .say(
-                &ctx.http,
-                format!(
-                    "📊 Votekick passed (✅ {} | ❌ {}) but failed to kick {}: {}",
-                    yes_votes,
-                    no_votes,
-                    target_member.user.mention(),
-                    e
-                ),
-            )
-            .await;
+        send_temporary_message(
+            ctx,
+            channel_id,
+            format!(
+                "📊 Votekick passed (✅ {} | ❌ {}) but failed to kick {}: {}",
+                yes_votes,
+                no_votes,
+                target_member.user.mention(),
+                e
+            ),
+            10,
+        )
+        .await;
     } else {
-        info!("Successfully disconnected {} from voice channel", target_user_id);
+        info!(
+            "Successfully disconnected {} from voice channel",
+            target_user_id
+        );
 
-        // Send success message
-        let _ = channel_id
-            .say(
-                &ctx.http,
-                format!(
-                    "👢 **{}** was kicked from the voice channel!\n\n📊 Results: ✅ {} | ❌ {} (Total votes: {})",
-                    target_member.user.mention(),
-                    yes_votes,
-                    no_votes,
-                    total_votes
-                ),
-            )
-            .await;
+        send_temporary_message(
+            ctx,
+            channel_id,
+            format!(
+                "👢 **{}** was kicked from the voice channel!\n\n📊 Results: ✅ {} | ❌ {} (Total votes: {})",
+                target_member.user.mention(),
+                yes_votes,
+                no_votes,
+                total_votes
+            ),
+            10,
+        )
+        .await;
+    }
+}
+
+/// Count users who reacted with a specific emoji, excluding the bot
+async fn get_reaction_count(
+    http: &serenity::all::Http,
+    message: &serenity::all::Message,
+    reaction_type: &ReactionType,
+) -> u32 {
+    let mut count = 0u32;
+    let mut after: Option<UserId> = None;
+
+    loop {
+        let users = match message
+            .reaction_users(http, reaction_type.clone(), Some(100u8), after)
+            .await
+        {
+            Ok(u) => u,
+            Err(e) => {
+                error!("Failed to get reaction users: {}", e);
+                break;
+            }
+        };
+
+        if users.is_empty() {
+            break;
+        }
+
+        for user in &users {
+            if user.id != message.author.id {
+                count += 1;
+            }
+        }
+
+        if users.len() < 100 {
+            break;
+        }
+
+        after = users.last().map(|u| u.id);
+    }
+
+    count
+}
+
+/// Send a message that auto-deletes after a specified number of seconds
+async fn send_temporary_message(
+    ctx: &Context,
+    channel_id: ChannelId,
+    content: impl Into<String>,
+    delete_after_secs: u64,
+) {
+    let content = content.into();
+    let http = ctx.http.clone();
+
+    match channel_id.say(&http, content).await {
+        Ok(message) => {
+            let message_id = message.id;
+            tokio::spawn(async move {
+                sleep(Duration::from_secs(delete_after_secs)).await;
+                let _ = channel_id.delete_message(&http, message_id).await;
+            });
+        }
+        Err(e) => {
+            error!("Failed to send temporary message: {}", e);
+        }
     }
 }

@@ -49,25 +49,6 @@ impl EventHandler for Bot {
                     }
                 }
             }
-            Interaction::Component(component) => {
-                let custom_id = &component.data.custom_id;
-
-                if custom_id == "votekick_select" {
-                    // Get selected user from select menu values
-                    if let serenity::all::ComponentInteractionDataKind::StringSelect { values } =
-                        &component.data.kind
-                    {
-                        let target_id = values
-                            .first()
-                            .and_then(|id| id.parse::<u64>().ok())
-                            .map(serenity::all::UserId::new);
-
-                        if let Some(target_id) = target_id {
-                            votekick::poll::handle_select(&ctx, &component, target_id).await;
-                        }
-                    }
-                }
-            }
             _ => {}
         }
     }
@@ -85,7 +66,8 @@ async fn main() -> anyhow::Result<()> {
 
     let intents = GatewayIntents::GUILDS
         | GatewayIntents::GUILD_VOICE_STATES
-        | GatewayIntents::GUILD_MEMBERS;
+        | GatewayIntents::GUILD_MEMBERS
+        | GatewayIntents::GUILD_MESSAGE_REACTIONS;
 
     let mut client = Client::builder(&token, intents)
         .event_handler(Bot)

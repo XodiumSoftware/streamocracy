@@ -1,9 +1,9 @@
 use serenity::all::{
-    CommandInteraction, Context, CreateActionRow, CreateInteractionResponse,
-    CreateInteractionResponseMessage, CreateSelectMenu, CreateSelectMenuOption,
+    CommandInteraction, Context, CreateInteractionResponse, CreateInteractionResponseMessage,
 };
 use tracing::{error, info, warn};
 
+/// Send an ephemeral error response to the user.
 async fn send_error(ctx: &Context, command: &CommandInteraction, message: &str) {
     if let Err(e) = command
         .create_response(
@@ -20,6 +20,36 @@ async fn send_error(ctx: &Context, command: &CommandInteraction, message: &str) 
     }
 }
 
+/// Get the voice channel ID for a user in a guild.
+fn get_user_voice_channel(
+    ctx: &Context,
+    guild_id: serenity::all::GuildId,
+    user_id: serenity::all::UserId,
+) -> Option<serenity::all::ChannelId> {
+    let guild = ctx.cache.guild(guild_id)?;
+    let vs = guild.voice_states.get(&user_id)?;
+    vs.channel_id
+}
+
+/// Check if target user is in the same channel and screensharing.
+fn check_target_user(
+    ctx: &Context,
+    guild_id: serenity::all::GuildId,
+    target_user_id: serenity::all::UserId,
+    user_channel_id: serenity::all::ChannelId,
+) -> (bool, bool) {
+    let Some(guild) = ctx.cache.guild(guild_id) else {
+        return (false, false);
+    };
+    let Some(vs) = guild.voice_states.get(&target_user_id) else {
+        return (false, false);
+    };
+    let in_same = vs.channel_id == Some(user_channel_id);
+    let screensharing = vs.self_stream.unwrap_or(false);
+    (in_same, screensharing)
+}
+
+/// Handle the votekick command.
 pub async fn run(ctx: &Context, command: &CommandInteraction) {
     let user = &command.user;
     let guild_id = command
@@ -29,120 +59,68 @@ pub async fn run(ctx: &Context, command: &CommandInteraction) {
 
     info!(
         "Command '{} (votekick)' invoked by {} ({}) in {}",
-        command.data.name,
-        user.name,
-        user.id,
-        guild_id,
+        command.data.name, user.name, user.id, guild_id,
     );
 
-    // Check if command is used in a guild (not DM)
     let Some(guild_id) = command.guild_id else {
         warn!("votekick used in DM by {}", user.name);
         send_error(ctx, command, "This command can only be used in a server.").await;
         return;
     };
 
-    // Check if guild is in cache and clone it to avoid Send issues
-    let guild = match ctx.cache.guild(guild_id) {
-        Some(g) => g.clone(),
+    let target_user_id = command
+        .data
+        .options
+        .first()
+        .and_then(|opt| opt.value.as_user_id())
+        .expect("User option is required");
+
+    let user_channel_id = match get_user_voice_channel(ctx, guild_id, user.id) {
+        Some(cid) => cid,
         None => {
-            error!("Guild not in cache");
+            warn!("{} tried votekick but is not in a voice channel", user.name);
+            send_error(
+                ctx,
+                command,
+                "You must be in a voice channel to use this command.",
+            )
+            .await;
             return;
         }
     };
 
-    // Check if user is in a voice channel
-    let Some(user_voice_state) = guild.voice_states.get(&user.id) else {
-        warn!("{} tried votekick but is not in a voice channel", user.name);
-        send_error(ctx, command, "You must be in a voice channel to use this command.").await;
-        return;
-    };
+    let (target_in_same_channel, target_screensharing) =
+        check_target_user(ctx, guild_id, target_user_id, user_channel_id);
 
-    let Some(user_channel_id) = user_voice_state.channel_id else {
-        warn!("{} has voice state but no channel", user.name);
-        return;
-    };
-
-    // Check if anyone in the same voice channel is screensharing
-    let has_screenshare = guild
-        .voice_states
-        .values()
-        .filter(|vs| vs.channel_id == Some(user_channel_id))
-        .any(|vs| vs.self_stream.unwrap_or(false));
-
-    if !has_screenshare {
-        warn!("No screenshares in voice channel for {}", user.name);
+    if !target_in_same_channel {
+        warn!(
+            "Target user {} is not in the same voice channel as {}",
+            target_user_id, user.name
+        );
         send_error(
             ctx,
             command,
-            "There are no active screenshares in this voice channel.",
+            "The target user must be in the same voice channel as you.",
         )
         .await;
         return;
     }
 
-    // Get all users in the voice channel who are screensharing
-    let screensharers: Vec<(&serenity::all::UserId, &str)> = guild
-        .voice_states
-        .iter()
-        .filter(|(_, vs)| vs.channel_id == Some(user_channel_id) && vs.self_stream.unwrap_or(false))
-        .filter_map(|(user_id, _)| {
-            guild
-                .members
-                .get(user_id)
-                .map(|m| (user_id, m.user.name.as_str()))
-        })
-        .collect();
-
-    if screensharers.is_empty() {
-        warn!("No screensharers found in voice channel for {}", user.name);
+    if !target_screensharing {
+        warn!("Target user {} is not screensharing", target_user_id);
         send_error(
             ctx,
             command,
-            "There are no active screenshares in this voice channel.",
+            "The target user must be screensharing to start a votekick.",
         )
         .await;
         return;
     }
 
     info!(
-        "Found {} screensharers for votekick by {}",
-        screensharers.len(),
-        user.name
+        "Votekick starting by {} targeting {} in channel {}",
+        user.name, target_user_id, user_channel_id
     );
 
-    // Create select menu options for each screensharer
-    let options: Vec<CreateSelectMenuOption> = screensharers
-        .into_iter()
-        .map(|(user_id, name)| {
-            CreateSelectMenuOption::new(name, user_id.to_string())
-                .description(format!("Vote to kick {} from the voice channel", name))
-        })
-        .collect();
-
-    let select_menu = CreateSelectMenu::new("votekick_select", serenity::all::CreateSelectMenuKind::String {
-        options,
-    })
-    .placeholder("Select a user to votekick")
-    .min_values(1)
-    .max_values(1);
-
-    // Create action row with the select menu
-    let action_row = CreateActionRow::SelectMenu(select_menu);
-
-    // Send response with the select menu
-    if let Err(e) = command
-        .create_response(
-            &ctx.http,
-            CreateInteractionResponse::Message(
-                CreateInteractionResponseMessage::new()
-                    .content("Select a user to start a votekick:")
-                    .ephemeral(true)
-                    .components(vec![action_row]),
-            ),
-        )
-        .await
-    {
-        error!("Failed to respond with select menu: {}", e);
-    }
+    super::poll::start_votekick(ctx, command, target_user_id, user_channel_id).await;
 }

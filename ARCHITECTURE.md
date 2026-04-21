@@ -4,7 +4,7 @@ This file provides guidance when working with code in this repository.
 
 ## Project Overview
 
-Streamocracy is a simple Discord bot built with Rust and the Serenity framework. It is a small, single-purpose bot without complex configuration or module systems.
+Streamocracy is a Discord bot built with Rust and the Serenity framework. It provides votekick functionality for voice channels, allowing users to vote on kicking someone who is screensharing.
 
 ## Build & Run Commands
 
@@ -41,28 +41,55 @@ cargo run
 
 The bot uses Discord slash commands:
 
-| Command | Response   |
-|---------|------------|
-| `/ping` | `Pong! 🏓` |
+| Command     | Arguments         | Description                                               |
+|-------------|-------------------|-----------------------------------------------------------|
+| `/ping`     | None              | Responds with `Pong! 🏓` to verify bot is responsive      |
+| `/votekick` | `user` (required) | Start a votekick poll against a user who is screensharing |
+| `/vk`       | `user` (required) | Alias for `/votekick`                                     |
 
 ### Project Structure
 
-| Path               | Contents                                         |
-|--------------------|--------------------------------------------------|
-| `src/main.rs`      | Main entry point, bot event handler, inline cmds |
-| `src/cmds/ping.rs` | Ping command implementation                      |
+```
+src/
+├── main.rs              # Main entry point, bot event handler
+├── lib.rs               # Library exports and documentation
+├── utils.rs             # Utility functions for command registration and responses
+├── ping/
+│   └── cmd.rs           # Ping command implementation
+└── votekick/
+    ├── cmd.rs           # Votekick command handler (validates and starts poll)
+    └── poll.rs          # Reaction-based poll logic and result checking
+```
 
-**Note:** The `cmds` module is defined inline in `main.rs` with `mod cmds { pub mod ping; }`. To add new commands, create files in `src/cmds/` and add `pub mod <name>;` inside the inline module block in `main.rs`.
+### Votekick Flow
+
+1. User runs `/votekick @user` or `/vk @user`
+2. `votekick::cmd::run()` validates:
+    - Command is used in a guild (not DM)
+    - Invoker is in a voice channel
+    - Target user is in the same voice channel
+    - Target user is currently screensharing
+3. `votekick::poll::start_votekick()` creates:
+    - Embed message with votekick details
+    - ✅ and ❌ reactions for voting
+    - Background task to check results after 60 seconds
+4. `votekick::poll::check_poll_results()`:
+    - Deletes the poll message
+    - Counts reactions (excluding the bot)
+    - Requires minimum 2 yes votes and majority to pass
+    - Disconnects user from voice channel if passed
+    - Sends temporary results message (auto-deletes after 10 seconds)
 
 ### Dependencies
 
-| Crate      | Purpose                                  |
-|------------|------------------------------------------|
-| `serenity` | Discord API client and framework         |
-| `tokio`    | Async runtime                            |
-| `tracing`  | Logging and diagnostics                  |
-| `dotenvy`  | Environment variable loading from `.env` |
-| `anyhow`   | Error handling                           |
+| Crate                | Purpose                                  |
+|----------------------|------------------------------------------|
+| `serenity`           | Discord API client and framework         |
+| `tokio`              | Async runtime                            |
+| `tracing`            | Logging and diagnostics                  |
+| `tracing-subscriber` | Log formatting and output                |
+| `dotenvy`            | Environment variable loading from `.env` |
+| `anyhow`             | Error handling                           |
 
 ### Key Conventions
 
@@ -70,3 +97,4 @@ The bot uses Discord slash commands:
 - All Clippy warnings are enabled (`[lints.clippy] all = "warn"`).
 - The release profile enables LTO and strips symbols for minimal binary size.
 - Bot token is read from the `DISCORD_TOKEN` environment variable (required).
+- Optional `GUILD_ID` for instant command registration during testing.

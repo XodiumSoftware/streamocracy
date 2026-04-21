@@ -3,6 +3,7 @@ use serenity::all::{
 };
 use tracing::{error, info};
 
+/// Handle the ping command - responds with "Pong! 🏓" to verify bot is responsive.
 pub async fn run(ctx: &Context, command: &CommandInteraction) {
     let user = &command.user;
     let guild_id = command
