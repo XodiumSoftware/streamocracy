@@ -228,24 +228,24 @@ results_delete_delay = 10
 
 ### Configuration Options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `discord_token` | Your Discord bot token | (required) |
-| `guild_id` | Optional guild ID for testing | `null` |
-| `log_level` | Logging verbosity | `info` |
-| `default_votekick_duration` | Default poll duration (seconds) | `60` |
-| `min_votekick_duration` | Minimum poll duration (seconds) | `10` |
-| `max_votekick_duration` | Maximum poll duration (seconds) | `300` |
-| `results_delete_delay` | Results message lifetime (seconds) | `10` |
+| Option                      | Description                        | Default    |
+|-----------------------------|------------------------------------|------------|
+| `discord_token`             | Your Discord bot token             | (required) |
+| `guild_id`                  | Optional guild ID for testing      | `null`     |
+| `log_level`                 | Logging verbosity                  | `info`     |
+| `default_votekick_duration` | Default poll duration (seconds)    | `60`       |
+| `min_votekick_duration`     | Minimum poll duration (seconds)    | `10`       |
+| `max_votekick_duration`     | Maximum poll duration (seconds)    | `300`      |
+| `results_delete_delay`      | Results message lifetime (seconds) | `10`       |
 
 ### Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `DISCORD_TOKEN` | Discord bot token (overrides config file) |
-| `GUILD_ID` | Guild ID for testing (overrides config file) |
-| `RUST_LOG` | Log level filter (e.g., `info`, `debug`, `trace`) |
-| `STREAMOCRACY_CONFIG` | Path to config file |
+| Variable              | Description                                       |
+|-----------------------|---------------------------------------------------|
+| `DISCORD_TOKEN`       | Discord bot token (overrides config file)         |
+| `GUILD_ID`            | Guild ID for testing (overrides config file)      |
+| `RUST_LOG`            | Log level filter (e.g., `info`, `debug`, `trace`) |
+| `STREAMOCRACY_CONFIG` | Path to config file                               |
 
 ---
 
@@ -258,18 +258,18 @@ results_delete_delay = 10
 3. Go to the "Bot" section and click "Add Bot"
 4. Copy the bot token (you'll need this for the config)
 5. Enable these **Privileged Gateway Intents**:
-   - **Server Members Intent** - Required for voice states
-   - **Message Content Intent** - Required for command handling
+    - **Server Members Intent** - Required for voice states
+    - **Message Content Intent** - Required for command handling
 
 ### Inviting the Bot
 
 1. Go to OAuth2 → URL Generator
 2. Select scopes: `bot` and `applications.commands`
 3. Select permissions:
-   - **Connect** (to view voice channels)
-   - **Speak** (for future voice features)
-   - **Move Members** (required for votekick disconnect)
-   - **View Channels** (to see voice channels)
+    - **Connect** (to view voice channels)
+    - **Speak** (for future voice features)
+    - **Move Members** (required for votekick disconnect)
+    - **View Channels** (to see voice channels)
 4. Copy the generated URL and open it in your browser
 5. Select your server and authorize
 
@@ -279,33 +279,33 @@ results_delete_delay = 10
 
 The bot uses Discord slash commands. Type `/` in chat to see available commands:
 
-| Command | Description |
-|---------|-------------|
-| `/ping` | Bot responds with "Pong! 🏓" |
-| `/votekick` | Start a votekick poll |
-| `/vk` | Alias for `/votekick` |
+| Command     | Description                  |
+|-------------|------------------------------|
+| `/ping`     | Bot responds with "Pong! 🏓" |
+| `/votekick` | Start a votekick poll        |
+| `/vk`       | Alias for `/votekick`        |
 
 ### Votekick
 
 The votekick command allows server members to vote on kicking a user from a voice channel:
 
 1. **Requirements**:
-   - You must be in a voice channel
-   - Someone in that channel must be screensharing
+    - You must be in a voice channel
+    - Someone in that channel must be screensharing
 
 2. **Usage**:
-   - Type `/votekick` or `/vk`
-   - Select the user to kick from the dropdown
-   - Optionally adjust the poll duration
+    - Type `/votekick` or `/vk`
+    - Select the user to kick from the dropdown
+    - Optionally adjust the poll duration
 
 3. **Voting**:
-   - Members vote ✅ or ❌ on the poll
-   - Requires at least 2 yes votes
-   - Yes votes must exceed no votes
+    - Members vote ✅ or ❌ on the poll
+    - Requires at least 2 yes votes
+    - Yes votes must exceed no votes
 
 4. **Result**:
-   - If passed: User is disconnected from voice
-   - If failed: Results are shown and user stays
+    - If passed: User is disconnected from voice
+    - If failed: Results are shown and user stays
 
 ---
 
