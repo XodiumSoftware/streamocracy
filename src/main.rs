@@ -39,17 +39,14 @@ impl EventHandler for Bot {
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        match interaction {
-            Interaction::Command(command) => {
-                match command.data.name.as_str() {
-                    "ping" => ping::cmd::run(&ctx, &command).await,
-                    "votekick" | "vk" => votekick::cmd::run(&ctx, &command).await,
-                    _ => {
-                        Utils::ephemeral_response(&ctx.http, &command, "Unknown command").await;
-                    }
+        if let Interaction::Command(command) = interaction {
+            match command.data.name.as_str() {
+                "ping" => ping::cmd::run(&ctx, &command).await,
+                "votekick" | "vk" => votekick::cmd::run(&ctx, &command).await,
+                _ => {
+                    Utils::ephemeral_response(&ctx.http, &command, "Unknown command").await;
                 }
             }
-            _ => {}
         }
     }
 }
