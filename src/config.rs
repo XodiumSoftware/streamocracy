@@ -49,7 +49,10 @@ impl Config {
         let config_path = Self::config_path()?;
 
         if !config_path.exists() {
-            info!("Config file not found, creating default at {:?}", config_path);
+            info!(
+                "Config file not found, creating default at {:?}",
+                config_path
+            );
             Self::create_default(&config_path)?;
             anyhow::bail!(
                 "Please edit {:?} and set your discord_token before running the bot",
@@ -73,8 +76,7 @@ impl Config {
 
     /// Get the path to the config file (executable directory)
     fn config_path() -> Result<PathBuf> {
-        let exe_path = env::current_exe()
-            .context("Failed to get current executable path")?;
+        let exe_path = env::current_exe().context("Failed to get current executable path")?;
         let exe_dir = exe_path
             .parent()
             .context("Failed to get executable directory")?;
@@ -83,35 +85,36 @@ impl Config {
 
     /// Create a default config file
     fn create_default(path: &PathBuf) -> Result<()> {
-        let default_config = r#"# Streamocracy Bot Configuration
+        let config = Config::default();
+
+        let toml = format!(
+            r#"# Streamocracy Bot Configuration
 # Place this file in the same directory as the executable
 
 # Discord bot token (required)
 # Get this from https://discord.com/developers/applications
-discord_token = ""
+discord_token = "{discord_token}"
 
 # Optional guild ID for instant command registration during testing
 # If set, commands register immediately in this guild
 # If unset, commands register globally (takes up to 1 hour)
-guild_id = null
+# guild_id = 1234567890123456789
 
-# Log level filter (error, warn, info, debug, trace)
-log_level = "info"
+log_level = "{log_level}"
+default_votekick_duration = {default_votekick_duration}
+min_votekick_duration = {min_votekick_duration}
+max_votekick_duration = {max_votekick_duration}
+results_delete_delay = {results_delete_delay}
+"#,
+            discord_token = config.discord_token,
+            log_level = config.log_level,
+            default_votekick_duration = config.default_votekick_duration,
+            min_votekick_duration = config.min_votekick_duration,
+            max_votekick_duration = config.max_votekick_duration,
+            results_delete_delay = config.results_delete_delay,
+        );
 
-# Default votekick duration in seconds
-default_votekick_duration = 60
-
-# Minimum votekick duration in seconds (must be at least 10)
-min_votekick_duration = 10
-
-# Maximum votekick duration in seconds (max 300 = 5 minutes)
-max_votekick_duration = 300
-
-# How long to display results messages before auto-deleting (seconds)
-results_delete_delay = 10
-"#;
-
-        fs::write(path, default_config)
+        fs::write(path, toml)
             .with_context(|| format!("Failed to write default config to {:?}", path))?;
 
         Ok(())
@@ -125,10 +128,7 @@ results_delete_delay = 10
 
 /// Load config and set up logging
 pub fn init() -> Result<Config> {
-    // Try loading config first
     let config = Config::load()?;
-
-    // Set up tracing with configured log level
     let subscriber = tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
