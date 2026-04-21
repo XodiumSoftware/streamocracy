@@ -21,12 +21,6 @@ static ACTIVE_VOTEKICKS: LazyLock<ActiveVotekicks> =
 
 /// A poll for voting to kick a user from a voice channel.
 pub struct VotekickPoll {
-    /// The user being targeted for the votekick
-    pub target_user_id: UserId,
-    /// The guild where the votekick is happening
-    pub guild_id: serenity::all::GuildId,
-    /// The voice channel ID
-    pub channel_id: ChannelId,
     /// The user who initiated the votekick
     pub initiator_name: String,
     /// Target user's display name
@@ -37,18 +31,8 @@ pub struct VotekickPoll {
 
 impl VotekickPoll {
     /// Create a new votekick poll.
-    pub fn new(
-        target_user_id: UserId,
-        guild_id: serenity::all::GuildId,
-        channel_id: ChannelId,
-        initiator_name: String,
-        target_name: String,
-        duration_secs: u64,
-    ) -> Self {
+    pub fn new(initiator_name: String, target_name: String, duration_secs: u64) -> Self {
         Self {
-            target_user_id,
-            guild_id,
-            channel_id,
             initiator_name,
             target_name,
             duration_secs,
@@ -211,29 +195,6 @@ impl Poll for VotekickPoll {
                 .await;
         }
     }
-
-    async fn start(&self, ctx: &Context, command: &CommandInteraction) -> anyhow::Result<u64> {
-        let message_id = Poll::start(self, ctx, command).await?;
-
-        {
-            let mut active = ACTIVE_VOTEKICKS.lock().await;
-            active.insert(
-                message_id,
-                (
-                    self.target_user_id.get(),
-                    self.guild_id.get(),
-                    self.channel_id.get(),
-                ),
-            );
-        }
-
-        info!(
-            "Votekick poll created for {} (message_id: {})",
-            self.target_name, message_id
-        );
-
-        Ok(message_id)
-    }
 }
 
 /// Start a new votekick poll.
@@ -262,16 +223,26 @@ pub async fn start_votekick(
     };
 
     let poll = VotekickPoll::new(
-        target_user_id,
-        guild_id,
-        channel_id,
         command.user.name.clone(),
         target_member.user.name,
         duration_secs,
     );
 
-    match poll.start(ctx, command).await {
+    match Poll::start(&poll, ctx, command).await {
         Ok(message_id) => {
+            {
+                let mut active = ACTIVE_VOTEKICKS.lock().await;
+                active.insert(
+                    message_id,
+                    (target_user_id.get(), guild_id.get(), channel_id.get()),
+                );
+            }
+
+            info!(
+                "Votekick poll created for {} (message_id: {})",
+                poll.target_name, message_id
+            );
+
             schedule_poll_completion(poll, ctx.clone(), message_id, duration_secs).await;
         }
         Err(e) => {
