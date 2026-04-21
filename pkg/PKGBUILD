@@ -1,0 +1,43 @@
+# Maintainer: Xodium <your.email@example.com>
+pkgname=streamocracy
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="A Discord bot for managing voice channel votekicks"
+arch=('x86_64' 'aarch64')
+url="https://github.com/illyrius666/streamocracy"
+license=('MIT')
+depends=('gcc-libs' 'openssl')
+makedepends=('rust' 'cargo')
+backup=('etc/streamocracy/config.toml')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/v$pkgver.tar.gz"
+        "streamocracy.service"
+        "streamocracy.sysusers")
+sha256sums=('SKIP' 'SKIP' 'SKIP')
+
+build() {
+    cd "$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    export CARGO_TARGET_DIR=target
+    cargo build --release --locked
+}
+
+package() {
+    cd "$pkgname-$pkgver"
+
+    # Binary
+    install -Dm755 "target/release/streamocracy" "$pkgdir/usr/bin/streamocracy"
+
+    # Config file
+    install -Dm644 "config.toml" "$pkgdir/etc/streamocracy/config.toml.example"
+
+    # Documentation
+    install -Dm644 "README.md" "$pkgdir/usr/share/doc/$pkgname/README.md"
+    install -Dm644 "INSTALLATION.md" "$pkgdir/usr/share/doc/$pkgname/INSTALLATION.md"
+    install -Dm644 "LICENSE.md" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+
+    # Systemd service
+    install -Dm644 "$srcdir/streamocracy.service" "$pkgdir/usr/lib/systemd/system/streamocracy.service"
+
+    # Sysusers file for creating streamocracy user
+    install -Dm644 "$srcdir/streamocracy.sysusers" "$pkgdir/usr/lib/sysusers.d/streamocracy.conf"
+}

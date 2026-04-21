@@ -143,7 +143,28 @@ The bot uses a generic `Poll` trait for reaction-based voting:
 ### Key Conventions
 
 - `unsafe_code` is forbidden project-wide (`[lints.rust] unsafe_code = "forbid"`).
-- All Clippy warnings are enabled (`[lints.clippy] all = "warn"`).
+- All Clippy warnings are enabled (`[lints.clippy] all = "warn").
 - The release profile enables LTO and strips symbols for minimal binary size.
 - Configuration is loaded from `config.toml` in the executable directory.
 - The bot creates a default config file on first run if one doesn't exist.
+
+## CI/CD
+
+### GitHub Actions Workflows
+
+| Workflow           | File                                | Trigger           | Description                            |
+|--------------------|-------------------------------------|-------------------|----------------------------------------|
+| **Publish to AUR** | `.github/workflows/publish-aur.yml` | Release published | Automatically publishes package to AUR |
+
+### AUR Publishing
+
+The workflow requires a GitHub secret `AUR_SSH_PRIVATE_KEY` containing the private key for an AUR account. See `pkg/README.md` for setup instructions.
+
+The workflow:
+
+1. Extracts version from the release tag
+2. Updates `pkgver` in `PKGBUILD`
+3. Generates `.SRCINFO`
+4. Commits and pushes to `ssh://aur@aur.archlinux.org/streamocracy.git`
+
+To publish manually, use `workflow_dispatch` and specify the version.

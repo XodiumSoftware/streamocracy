@@ -34,3 +34,11 @@ Thumbs.db
 # Local configuration that shouldn't be committed
 config.json
 *.log
+
+# Arch packaging artifacts
+pkg/*.tar.zst
+pkg/*.tar.gz
+pkg/*.tar.xz
+pkg/pkg/
+pkg/src/
+pkg/.SRCINFO

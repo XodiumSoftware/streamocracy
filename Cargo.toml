@@ -3,7 +3,7 @@ name = "streamocracy"
 version = "0.1.0"
 edition = "2024"
 authors = ["Xodium"]
-description = "A simple Discord bot with a single purpose"
+description = "Democracy, but for your stream"
 
 [[bin]]
 name = "streamocracy"

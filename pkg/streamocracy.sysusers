@@ -1,0 +1,2 @@
+# Create streamocracy system user
+u streamocracy - "Streamocracy Discord Bot" /var/lib/streamocracy -
