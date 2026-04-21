@@ -4,8 +4,7 @@ on:
   workflow_run:
     workflows: [ "Xodium CI/CD - Release" ]
     branches: [ main ]
-    types:
-      - completed
+    types: [ completed ]
   workflow_dispatch:
 
 permissions:
