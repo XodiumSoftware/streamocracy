@@ -12,7 +12,14 @@ use tracing::{error, info, warn};
 
 // Active votekicks: message_id -> (target_user_id, guild_id, channel_id)
 use std::sync::LazyLock;
-static ACTIVE_VOTEKICKS: LazyLock<Arc<Mutex<HashMap<u64, (u64, u64, u64)>>>> =
+
+/// (target_user_id, guild_id, channel_id)
+type VotekickInfo = (u64, u64, u64);
+
+/// Thread-safe storage for active votekicks
+type ActiveVotekicks = Arc<Mutex<HashMap<u64, VotekickInfo>>>;
+
+static ACTIVE_VOTEKICKS: LazyLock<ActiveVotekicks> =
     LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 pub async fn handle_select(
@@ -132,7 +139,7 @@ async fn check_poll_results(ctx: &Context, message_id: u64) {
     };
 
     let guild_id = serenity::all::GuildId::new(guild_id);
-    let target_user_id = serenity::all::UserId::new(target_user_id);
+    let target_user_id = UserId::new(target_user_id);
     let channel_id = ChannelId::new(channel_id);
 
     // Fetch the message to check poll results

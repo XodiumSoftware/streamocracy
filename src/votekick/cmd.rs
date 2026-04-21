@@ -4,6 +4,22 @@ use serenity::all::{
 };
 use tracing::{error, info, warn};
 
+async fn send_error(ctx: &Context, command: &CommandInteraction, message: &str) {
+    if let Err(e) = command
+        .create_response(
+            &ctx.http,
+            CreateInteractionResponse::Message(
+                CreateInteractionResponseMessage::new()
+                    .content(message)
+                    .ephemeral(true),
+            ),
+        )
+        .await
+    {
+        error!("Failed to send error response: {}", e);
+    }
+}
+
 pub async fn run(ctx: &Context, command: &CommandInteraction) {
     let user = &command.user;
     let guild_id = command
@@ -16,25 +32,13 @@ pub async fn run(ctx: &Context, command: &CommandInteraction) {
         command.data.name,
         user.name,
         user.id,
-        guild_id
+        guild_id,
     );
 
     // Check if command is used in a guild (not DM)
     let Some(guild_id) = command.guild_id else {
         warn!("votekick used in DM by {}", user.name);
-        if let Err(e) = command
-            .create_response(
-                &ctx.http,
-                CreateInteractionResponse::Message(
-                    CreateInteractionResponseMessage::new()
-                        .content("This command can only be used in a server.")
-                        .ephemeral(true),
-                ),
-            )
-            .await
-        {
-            error!("Failed to respond: {}", e);
-        }
+        send_error(ctx, command, "This command can only be used in a server.").await;
         return;
     };
 
@@ -50,19 +54,7 @@ pub async fn run(ctx: &Context, command: &CommandInteraction) {
     // Check if user is in a voice channel
     let Some(user_voice_state) = guild.voice_states.get(&user.id) else {
         warn!("{} tried votekick but is not in a voice channel", user.name);
-        if let Err(e) = command
-            .create_response(
-                &ctx.http,
-                CreateInteractionResponse::Message(
-                    CreateInteractionResponseMessage::new()
-                        .content("You must be in a voice channel to use this command.")
-                        .ephemeral(true),
-                ),
-            )
-            .await
-        {
-            error!("Failed to respond: {}", e);
-        }
+        send_error(ctx, command, "You must be in a voice channel to use this command.").await;
         return;
     };
 
@@ -79,23 +71,13 @@ pub async fn run(ctx: &Context, command: &CommandInteraction) {
         .any(|vs| vs.self_stream.unwrap_or(false));
 
     if !has_screenshare {
-        warn!(
-            "No screenshares in voice channel for {}",
-            user.name
-        );
-        if let Err(e) = command
-            .create_response(
-                &ctx.http,
-                CreateInteractionResponse::Message(
-                    CreateInteractionResponseMessage::new()
-                        .content("There are no active screenshares in this voice channel.")
-                        .ephemeral(true),
-                ),
-            )
-            .await
-        {
-            error!("Failed to respond: {}", e);
-        }
+        warn!("No screenshares in voice channel for {}", user.name);
+        send_error(
+            ctx,
+            command,
+            "There are no active screenshares in this voice channel.",
+        )
+        .await;
         return;
     }
 
@@ -114,19 +96,12 @@ pub async fn run(ctx: &Context, command: &CommandInteraction) {
 
     if screensharers.is_empty() {
         warn!("No screensharers found in voice channel for {}", user.name);
-        if let Err(e) = command
-            .create_response(
-                &ctx.http,
-                CreateInteractionResponse::Message(
-                    CreateInteractionResponseMessage::new()
-                        .content("There are no active screenshares in this voice channel.")
-                        .ephemeral(true),
-                ),
-            )
-            .await
-        {
-            error!("Failed to respond: {}", e);
-        }
+        send_error(
+            ctx,
+            command,
+            "There are no active screenshares in this voice channel.",
+        )
+        .await;
         return;
     }
 
