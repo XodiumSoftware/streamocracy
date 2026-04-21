@@ -1,0 +1,32 @@
+# Runtime stage only - expects pre-built binary at ./streamocracy
+FROM debian:bookworm-slim
+
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Create non-root user
+RUN useradd -m -u 1000 streamocracy
+
+# Copy pre-built binary (injected via build context)
+COPY streamocracy /usr/local/bin/streamocracy
+RUN chmod +x /usr/local/bin/streamocracy
+
+# Create config directory and set permissions
+RUN mkdir -p /app/config && chown -R streamocracy:streamocracy /app
+
+USER streamocracy
+
+# Set default config path environment variable
+ENV STREAMOCRACY_CONFIG=/app/config/config.toml
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD pgrep -x streamocracy > /dev/null || exit 1
+
+ENTRYPOINT ["streamocracy"]
