@@ -1,7 +1,7 @@
 //! Votekick poll implementation
 
 use crate::polls::{Poll, schedule_poll_completion, send_temporary_message};
-use serenity::all::{ChannelId, CommandInteraction, Context, CreateEmbed, ReactionType, UserId};
+use serenity::all::{ChannelId, CommandInteraction, Context, CreateEmbed, UserId};
 use serenity::prelude::Mentionable;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -84,34 +84,8 @@ impl Poll for VotekickPoll {
             )))
     }
 
-    async fn start(&self, ctx: &Context, command: &CommandInteraction) -> anyhow::Result<u64> {
-        let message_id = Poll::start(self, ctx, command).await?;
-
-        // Store votekick-specific metadata
-        {
-            let mut active = ACTIVE_VOTEKICKS.lock().await;
-            active.insert(
-                message_id,
-                (
-                    self.target_user_id.get(),
-                    self.guild_id.get(),
-                    self.channel_id.get(),
-                ),
-            );
-        }
-
-        info!(
-            "Votekick poll created for {} (message_id: {})",
-            self.target_name, message_id
-        );
-
-        Ok(message_id)
-    }
-
     async fn on_complete(&self, ctx: &Context, message_id: u64, yes_votes: u32, no_votes: u32) {
         let total_votes = yes_votes + no_votes;
-
-        // Get votekick metadata
         let (target_user_id, guild_id, channel_id) = {
             let mut active = ACTIVE_VOTEKICKS.lock().await;
             match active.remove(&message_id) {
@@ -127,7 +101,6 @@ impl Poll for VotekickPoll {
         let target_user_id = UserId::new(target_user_id);
         let channel_id = ChannelId::new(channel_id);
 
-        // Check minimum votes
         if yes_votes < 2 {
             info!(
                 "Votekick did not pass - need minimum 2 yes votes (got {})",
@@ -146,7 +119,6 @@ impl Poll for VotekickPoll {
             return;
         }
 
-        // Check majority
         if yes_votes <= no_votes {
             info!(
                 "Votekick did not pass (yes: {}, no: {})",
@@ -170,7 +142,6 @@ impl Poll for VotekickPoll {
             yes_votes, no_votes, target_user_id
         );
 
-        // Get target member
         let target_member = match guild_id.member(&ctx.http, target_user_id).await {
             Ok(m) => m,
             Err(e) => {
@@ -179,7 +150,6 @@ impl Poll for VotekickPoll {
             }
         };
 
-        // Check if still in voice
         let guild_cache = ctx.cache.guild(guild_id);
         let in_voice = guild_cache
             .map(|g| g.voice_states.contains_key(&target_user_id))
@@ -205,7 +175,6 @@ impl Poll for VotekickPoll {
             return;
         }
 
-        // Execute the kick
         if let Err(e) = guild_id.disconnect_member(&ctx.http, target_user_id).await {
             error!("Failed to disconnect member: {}", e);
             send_temporary_message(
@@ -242,6 +211,29 @@ impl Poll for VotekickPoll {
                 .await;
         }
     }
+
+    async fn start(&self, ctx: &Context, command: &CommandInteraction) -> anyhow::Result<u64> {
+        let message_id = Poll::start(self, ctx, command).await?;
+
+        {
+            let mut active = ACTIVE_VOTEKICKS.lock().await;
+            active.insert(
+                message_id,
+                (
+                    self.target_user_id.get(),
+                    self.guild_id.get(),
+                    self.channel_id.get(),
+                ),
+            );
+        }
+
+        info!(
+            "Votekick poll created for {} (message_id: {})",
+            self.target_name, message_id
+        );
+
+        Ok(message_id)
+    }
 }
 
 /// Start a new votekick poll.
@@ -261,7 +253,6 @@ pub async fn start_votekick(
         }
     };
 
-    // Get target member info
     let target_member = match guild_id.member(&ctx.http, target_user_id).await {
         Ok(m) => m,
         Err(e) => {

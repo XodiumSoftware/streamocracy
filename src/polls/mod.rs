@@ -4,7 +4,7 @@ use serenity::all::{CommandInteraction, Context, CreateEmbed, ReactionType, User
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::LazyLock;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::time::sleep;
 use tracing::{error, info, warn};
@@ -14,12 +14,8 @@ pub mod votekick;
 /// Poll metadata stored while poll is active.
 #[derive(Clone)]
 pub struct PollInfo {
-    /// User who initiated the poll
-    pub initiator_id: UserId,
     /// Channel where poll was created
     pub channel_id: u64,
-    /// When the poll ends (Unix timestamp)
-    pub end_timestamp: u64,
 }
 
 /// Thread-safe storage for active polls
@@ -87,20 +83,13 @@ pub trait Poll: Send + Sync {
         }
 
         let message_id = message.id.get();
-        let end_time = SystemTime::now() + Duration::from_secs(self.duration());
-        let end_timestamp = end_time
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
 
         {
             let mut active = ACTIVE_POLLS.lock().await;
             active.insert(
                 message_id,
                 PollInfo {
-                    initiator_id: command.user.id,
                     channel_id: message.channel_id.get(),
-                    end_timestamp,
                 },
             );
         }
