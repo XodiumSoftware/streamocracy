@@ -4,8 +4,8 @@
 //!
 //! ## Configuration
 //!
-//! Configuration is loaded from `config.toml` in the executable directory.
-//! The bot will create a default config file on first run.
+//! Configuration is loaded from environment variables.
+//! A `.env` file can be used for local development.
 
 use anyhow::Context as AnyhowContext;
 use serenity::all::{Client, Context, EventHandler, GatewayIntents, Interaction, Ready};
@@ -55,6 +55,8 @@ impl EventHandler for Bot {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    dotenvy::dotenv().ok();
+
     let config = config::init().context("Failed to initialize configuration")?;
     let intents = GatewayIntents::GUILDS
         | GatewayIntents::GUILD_VOICE_STATES

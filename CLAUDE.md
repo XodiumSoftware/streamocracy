@@ -19,6 +19,7 @@
 | **Async Runtime**  | Tokio 1.43                                               | Async execution          |
 | **Logging**        | Tracing + tracing-subscriber                             | Diagnostics and logging  |
 | **Env Variables**  | dotenvy                                                  | `.env` file support      |
+| **Config**         | Environment variables                                    | Configuration source     |
 | **Error Handling** | anyhow                                                   | Ergonomic error handling |
 
 ### Serenity Resources
@@ -53,6 +54,7 @@ cargo run
 ### Entry Point
 
 **`main.rs`** — Contains the main function and bot implementation:
+
 - Sets up logging with `tracing_subscriber`
 - Loads environment variables from `.env` file (optional)
 - Creates a Serenity `Client` with the `Bot` event handler
@@ -79,7 +81,7 @@ The bot uses Discord slash commands:
 ```
 src/
 ├── main.rs              # Main entry point, bot event handler
-├── config.rs            # Configuration management (TOML file)
+├── config.rs            # Configuration management (environment variables)
 ├── utils.rs             # Utility functions for command registration
 ├── commands/
 │   ├── mod.rs           # SlashCommand trait and command registry
@@ -125,10 +127,34 @@ src/
 - No automated tests in this project currently
 - Test by running with a valid Discord token and verifying bot responds to `/ping`
 
-## Important Notes
+## Configuration
 
-- Configuration is loaded from `config.toml` in the executable directory
-- The bot creates a default config file on first run if one doesn't exist
+Configuration is loaded from environment variables. A `.env` file can be used for local development.
+
+| Variable                    | Required | Default | Description                                         |
+|-----------------------------|----------|---------|-----------------------------------------------------|
+| `DISCORD_TOKEN`             | Yes      | -       | Discord bot token from Developer Portal             |
+| `GUILD_ID`                  | No       | -       | Guild ID for instant command registration (testing) |
+| `LOG_LEVEL`                 | No       | `info`  | Log level filter (trace, debug, info, warn, error)  |
+| `DEFAULT_VOTEKICK_DURATION` | No       | `60`    | Default votekick duration in seconds                |
+| `MIN_VOTEKICK_DURATION`     | No       | `10`    | Minimum votekick duration in seconds                |
+| `MAX_VOTEKICK_DURATION`     | No       | `300`   | Maximum votekick duration in seconds                |
+| `RESULTS_DELETE_DELAY`      | No       | `10`    | Results message deletion delay in seconds           |
+
+### Docker Compose Example
+
+```yaml
+services:
+  bot:
+    image: streamocracy:latest
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - GUILD_ID=1234567890123456789
+      - LOG_LEVEL=info
+```
+
+### Important Notes
+
 - Intents must match those enabled in Discord Developer Portal
 
 ## Claude Code Workflow
@@ -167,6 +193,7 @@ src/
 ## CI/CD
 
 No CI/CD workflows are currently configured. Consider adding:
+
 - GitHub Actions for automated builds on push/PR
 - Release workflow for publishing binaries
 
