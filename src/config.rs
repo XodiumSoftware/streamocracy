@@ -21,8 +21,6 @@ pub struct Config {
     pub min_votekick_duration: u64,
     /// Maximum votekick duration in seconds (default: 300)
     pub max_votekick_duration: u64,
-    /// Results message deletion delay in seconds (default: 10)
-    pub results_delete_delay: u64,
 }
 
 impl Config {
@@ -50,11 +48,6 @@ impl Config {
             .and_then(|v| v.parse().ok())
             .unwrap_or(300);
 
-        let results_delete_delay = std::env::var("RESULTS_DELETE_DELAY")
-            .ok()
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(10);
-
         Ok(Self {
             discord_token,
             guild_id,
@@ -62,7 +55,6 @@ impl Config {
             default_votekick_duration,
             min_votekick_duration,
             max_votekick_duration,
-            results_delete_delay,
         })
     }
 
