@@ -62,23 +62,31 @@ cargo run
 
 **`Bot`** — implements `EventHandler` from `serenity`:
 
-- `ready()` — logs when the bot successfully connects
-- `message()` — handles incoming messages, ignoring bot messages
+- `ready()` — logs when the bot successfully connects and registers slash commands
+- `interaction_create()` — handles slash command interactions
 
 ### Commands
 
 The bot uses Discord slash commands:
 
-| Command | Response   |
-|---------|------------|
-| `/ping` | `Pong! 🏓` |
+| Command     | Arguments                           | Description                                               |
+|-------------|-------------------------------------|-----------------------------------------------------------|
+| `/ping`     | None                                | Responds with `Pong! 🏓` to verify bot is responsive      |
+| `/votekick` | `user` (required), `duration` (opt) | Start a votekick poll against a user who is screensharing |
 
 ### Project Structure
 
 ```
 src/
-├── main.rs          # Main entry point, bot event handler, command logic
-└── lib.rs           # Library exports and documentation
+├── main.rs              # Main entry point, bot event handler
+├── config.rs            # Configuration management (TOML file)
+├── utils.rs             # Utility functions for command registration
+├── commands/
+│   ├── mod.rs           # SlashCommand trait and command registry
+│   ├── ping.rs          # Ping command implementation
+│   └── votekick.rs      # Votekick command validation
+└── polls/
+    └── votekick.rs      # Reaction-based poll logic
 ```
 
 ### Key Conventions
@@ -92,16 +100,36 @@ src/
 - Commands can be registered globally or in a specific guild (set `GUILD_ID` for instant testing)
 - Handle interactions via `interaction_create()` event
 
+### Documentation Guidelines
+
+- **Public APIs** — All `pub` items (functions, structs, traits, modules) must have rustdoc comments (`///`)
+- **Structs** — Document the purpose and any important invariants:
+  ```rust
+  /// Slash command for starting a votekick poll against a user.
+  pub struct VotekickCommand;
+  ```
+- **Private functions** — Add rustdoc comments for non-trivial logic or when purpose isn't obvious from the name
+- **Trait implementations** — Methods in `impl TraitName for Type` blocks inherit docs from the trait definition and don't need separate documentation unless behavior differs
+- **Examples:**
+  ```rust
+  /// Start a new votekick poll for the target user.
+  pub async fn start_votekick(...) { }
+
+  /// Check if target user is in the same channel and screensharing.
+  /// Returns (in_same_channel, is_screensharing).
+  fn check_target_user(...) -> (bool, bool) { }
+  ```
+
 ## Testing
 
 - No automated tests in this project currently
-- Test by running with a valid Discord token and verifying bot responds to `!ping`
+- Test by running with a valid Discord token and verifying bot responds to `/ping`
 
 ## Important Notes
 
-- Simple single-purpose bot — no module system or configuration files
+- Configuration is loaded from `config.toml` in the executable directory
+- The bot creates a default config file on first run if one doesn't exist
 - Intents must match those enabled in Discord Developer Portal
-- Bot requires `Message Content` intent enabled for prefix commands
 
 ## Claude Code Workflow
 
@@ -146,13 +174,12 @@ No CI/CD workflows are currently configured. Consider adding:
 
 ### Adding a New Command
 
-1. Edit `src/main.rs`
-2. Add command parsing in the `message()` event handler
-3. Implement the command logic (e.g., API calls, calculations)
-4. Send response using `msg.channel_id.say(&ctx.http, "response").await`
-5. Handle errors with `tracing::error!`
-6. Update `ARCHITECTURE.md` command table
-7. Update `README.md` usage section
+1. Create a new file in `src/commands/` (e.g., `src/commands/mycommand.rs`)
+2. Implement the `SlashCommand` trait for your command struct
+3. Add the command to `src/commands/mod.rs` in `get_commands()`
+4. Handle errors with `tracing::error!`
+5. Update `ARCHITECTURE.md` command table
+6. Update `README.md` usage section
 
 ### Adding Event Handlers
 

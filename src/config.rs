@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use tracing::info;
 
 /// Bot configuration
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     /// Discord bot token (required)
     pub discord_token: String,

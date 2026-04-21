@@ -73,57 +73,72 @@ results_delete_delay = 10
 
 The bot uses Discord slash commands:
 
-| Command     | Arguments                              | Description                                               |
-|-------------|----------------------------------------|-----------------------------------------------------------|
-| `/ping`     | None                                   | Responds with `Pong! 🏓` to verify bot is responsive      |
-| `/votekick` | `user` (required), `duration` (opt)    | Start a votekick poll against a user who is screensharing |
-| `/vk`       | `user` (required), `duration` (opt)    | Alias for `/votekick`                                     |
+| Command     | Arguments                           | Description                                               |
+|-------------|-------------------------------------|-----------------------------------------------------------|
+| `/ping`     | None                                | Responds with `Pong! 🏓` to verify bot is responsive      |
+| `/votekick` | `user` (required), `duration` (opt) | Start a votekick poll against a user who is screensharing |
+| `/vk`       | `user` (required), `duration` (opt) | Alias for `/votekick`                                     |
 
 ### Project Structure
 
 ```
 src/
 ├── main.rs              # Main entry point, bot event handler
-├── lib.rs               # Library exports and documentation
 ├── config.rs            # Configuration management (TOML file)
 ├── utils.rs             # Utility functions for command registration and responses
-├── ping/
-│   └── cmd.rs           # Ping command implementation
-└── votekick/
-    ├── cmd.rs           # Votekick command handler (validates and starts poll)
-    └── poll.rs          # Reaction-based poll logic and result checking
+├── commands/
+│   ├── mod.rs           # SlashCommand trait definition and command registry
+│   ├── ping.rs          # Ping command implementation
+│   └── votekick.rs      # Votekick command handler (validates and starts poll)
+└── polls/
+    ├── mod.rs           # Poll trait and shared poll infrastructure
+    └── votekick.rs      # VotekickPoll struct implementing Poll trait
 ```
 
 ### Votekick Flow
 
 1. User runs `/votekick @user` or `/vk @user`
-2. `votekick::cmd::run()` validates:
-   - Command is used in a guild (not DM)
-   - Invoker is in a voice channel
-   - Target user is in the same voice channel
-   - Target user is currently screensharing
-3. `votekick::poll::start_votekick()` creates:
-   - Embed message with votekick details
-   - ✅ and ❌ reactions for voting
-   - Background task to check results after configured duration
-4. `votekick::poll::check_poll_results()`:
-   - Deletes the poll message
-   - Counts reactions (excluding the bot)
-   - Requires minimum 2 yes votes and majority to pass
-   - Disconnects user from voice channel if passed
-   - Sends temporary results message (auto-deletes after configured delay)
+2. `commands::votekick::VotekickCommand::run()` validates:
+    - Command is used in a guild (not DM)
+    - Invoker is in a voice channel
+    - Target user is in the same voice channel
+    - Target user is currently screensharing
+3. `polls::votekick::VotekickPoll::start()` (via `Poll` trait):
+    - Creates embed with votekick details
+    - Adds ✅ and ❌ reactions for voting
+    - Schedules completion via `polls::schedule_poll_completion()`
+4. `polls::votekick::VotekickPoll::on_complete()` (via `Poll` trait):
+    - Deletes the poll message
+    - Counts reactions (excluding the bot)
+    - Requires minimum 2 yes votes and majority to pass
+    - Disconnects user from voice channel if passed
+    - Sends temporary results message (auto-deletes after configured delay)
+
+### Poll System
+
+The bot uses a generic `Poll` trait for reaction-based voting:
+
+- **`polls::Poll`** — trait defining poll lifecycle:
+    - `title()` / `description()` — embed content
+    - `duration()` — poll duration in seconds
+    - `start()` — sends embed and schedules completion
+    - `on_complete()` — called when poll ends with vote counts
+
+- **`polls::VotekickPoll`** — struct implementing `Poll` for votekick functionality:
+    - Stores target user, guild, channel metadata
+    - Implements votekick-specific completion logic (disconnecting users)
 
 ### Dependencies
 
-| Crate                | Purpose                                  |
-|----------------------|------------------------------------------|
-| `serenity`           | Discord API client and framework         |
-| `tokio`              | Async runtime                            |
-| `tracing`            | Logging and diagnostics                  |
-| `tracing-subscriber` | Log formatting and output                |
-| `toml`               | TOML configuration file parsing          |
-| `serde`              | Serialization/deserialization            |
-| `anyhow`             | Error handling                           |
+| Crate                | Purpose                          |
+|----------------------|----------------------------------|
+| `serenity`           | Discord API client and framework |
+| `tokio`              | Async runtime                    |
+| `tracing`            | Logging and diagnostics          |
+| `tracing-subscriber` | Log formatting and output        |
+| `toml`               | TOML configuration file parsing  |
+| `serde`              | Serialization/deserialization    |
+| `anyhow`             | Error handling                   |
 
 ### Key Conventions
 

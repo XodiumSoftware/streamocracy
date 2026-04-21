@@ -14,17 +14,9 @@ use tracing::{error, info};
 use crate::config::Config;
 use crate::utils::Utils;
 
+mod commands;
 mod config;
-
-mod ping {
-    pub mod cmd;
-}
-
-mod votekick {
-    pub mod cmd;
-    pub mod poll;
-}
-
+mod polls;
 mod utils;
 
 struct Bot {
@@ -36,29 +28,34 @@ impl EventHandler for Bot {
     async fn ready(&self, ctx: Context, ready: Ready) {
         info!("Bot is connected as {}", ready.user.name);
 
-        let commands = Utils::create_command_list(&self.config);
+        let commands: Vec<_> = commands::get_commands()
+            .iter()
+            .map(|cmd| cmd.register())
+            .collect();
 
         Utils::register_commands(&ctx, self.config.guild_id(), commands).await;
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::Command(command) = interaction {
-            match command.data.name.as_str() {
-                "ping" => ping::cmd::run(&ctx, &command).await,
-                "votekick" | "vk" => votekick::cmd::run(&ctx, &command, &self.config).await,
-                _ => {
-                    Utils::ephemeral_response(&ctx.http, &command, "Unknown command").await;
+            let command_name = command.data.name.clone();
+            let config = self.config.clone();
+
+            for cmd in commands::get_commands() {
+                if cmd.name() == command_name.as_str() {
+                    cmd.run(ctx, command, config).await;
+                    return;
                 }
             }
+
+            Utils::ephemeral_response(&ctx.http, &command, "Unknown command").await;
         }
     }
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Load configuration and initialize logging
     let config = config::init().context("Failed to initialize configuration")?;
-
     let intents = GatewayIntents::GUILDS
         | GatewayIntents::GUILD_VOICE_STATES
         | GatewayIntents::GUILD_MEMBERS
