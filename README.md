@@ -13,11 +13,16 @@
 
 <h4 align="center">Democracy, but for your stream</h4><br />
 
+<p align="center">
+  A Discord bot for voice channel votekicking during screenshares
+</p><br />
+
 <div align="center">
 
 [![Contributors][contributors_shield_url]][contributors_url]
 [![Issues][issues_shield_url]][issues_url]
 [![License][license_shield_url]][license_url]
+[![Docs][docs_shield_url]][docs_url]
 </div>
 
 ## Table of Contents
@@ -42,18 +47,39 @@
    ```
    DISCORD_TOKEN=your-bot-token
    ```
-3. Build and run:
+3. Optional: Set a guild ID for instant command updates during testing:
+   ```bash
+   export GUILD_ID="your-guild-id"
+   ```
+4. Build and run:
    ```bash
    cargo run --release
    ```
+
+### Required Discord Intents
+
+Enable these intents in your [Discord Developer Portal](https://discord.com/developers/applications):
+- **Server Members** - Required for accessing voice states and member info
+- **Message Content** - Required for command handling
 
 ## Usage
 
 The bot uses Discord slash commands. Type `/` in chat to see available commands:
 
-| Command | Description                  |
-|---------|------------------------------|
+| Command | Description |
+|---------|-------------|
 | `/ping` | Bot responds with "Pong! 🏓" |
+| `/votekick` | Start a votekick against someone screensharing in your voice channel |
+| `/vk` | Alias for `/votekick` |
+
+### Votekick
+
+The votekick command allows server members to vote on kicking a user from a voice channel:
+
+1. User must be in a voice channel
+2. Someone in that channel must be screensharing
+3. Command displays a dropdown with screensharers to select
+4. Other members can vote; majority vote disconnects the target
 
 ## Built With
 
@@ -83,5 +109,9 @@ The bot uses Discord slash commands. Type `/` in chat to see available commands:
 [license_shield_url]: https://img.shields.io/github/license/XodiumSoftware/streamocracy?style=for-the-badge&color=green
 
 [license_url]: https://github.com/XodiumSoftware/streamocracy?tab=AGPL-3.0-1-ov-file
+
+[docs_shield_url]: https://img.shields.io/badge/docs-github--pages-blue?style=for-the-badge
+
+[docs_url]: https://streamocracy.xodium.org/
 
 [security_url]: https://github.com/XodiumSoftware/streamocracy?tab=security-ov-file
