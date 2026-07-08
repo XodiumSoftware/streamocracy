@@ -31,12 +31,13 @@
 ### Serenity Notes
 
 - Uses async/await pattern with Tokio runtime
-- Event-driven architecture with `EventHandler` trait
+- Event-driven design with `EventHandler` trait
 - Gateway intents must be explicitly declared for each feature
 - Message content intent requires enabling in Discord Developer Portal
 
-## Quick Commands
+## Project Structure
 
+### Entry Point
 ```bash
 # Build the bot (debug)
 cargo build
@@ -178,10 +179,10 @@ services:
 
 **Always update documentation when code changes:**
 
-1. **ARCHITECTURE.md** — Update if you:
-    - Add/remove commands or event handlers
-    - Change the project structure
-    - Add new Discord intents or features
+1. **AGENTS.md** — Update if you:
+    - Change project-level conventions or workflow
+    - Add/remove dependencies
+    - Modify environment variable requirements
 
 2. **README.md** — Update if you:
     - Add/remove commands
@@ -205,8 +206,7 @@ No CI/CD workflows are currently configured. Consider adding:
 2. Implement the `SlashCommand` trait for your command struct
 3. Add the command to `src/commands/mod.rs` in `get_commands()`
 4. Handle errors with `tracing::error!`
-5. Update `ARCHITECTURE.md` command table
-6. Update `README.md` usage section
+5. Update `README.md` usage section
 
 ### Adding Event Handlers
 
@@ -215,14 +215,14 @@ No CI/CD workflows are currently configured. Consider adding:
 3. Implement the `EventHandler` method (e.g., `reaction_add`, `guild_member_add`)
 4. Add required GatewayIntents in `main()`
 5. Enable the intent in Discord Developer Portal
-6. Update `ARCHITECTURE.md` with new functionality
+6. Update `README.md` with new functionality
 
 ### Adding Dependencies
 
 1. Add to `Cargo.toml` `[dependencies]` section
 2. Run `cargo check` to verify compilation
 3. Import with `use crate_name::...` in source files
-4. Document purpose in `ARCHITECTURE.md` APIs table
+4. Document purpose in `AGENTS.md` APIs table
 
 ## Memory System
 
