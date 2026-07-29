@@ -193,10 +193,16 @@ services:
 
 ## CI/CD
 
-No CI/CD workflows are currently configured. Consider adding:
+This project uses GitHub Actions configured in `.github/workflows/rust.yml`.
 
-- GitHub Actions for automated builds on push/PR
-- Release workflow for publishing binaries
+The workflow runs on pushes and pull requests to `main` and includes:
+
+- **Lint** — runs `cargo clippy --all-targets --all-features -- -D warnings` and `cargo fmt --all -- --check`
+- **Test** — runs `cargo test --all-features`
+- **Build** — builds a release binary and uploads it as an artifact
+- **Nightly Release** — creates/updates a `nightly` GitHub release with the binary (only on `main` or `workflow_dispatch`)
+- **Docker** — builds and pushes a `ghcr.io` image tagged `nightly` and with the short SHA (only on `main` or `workflow_dispatch`)
+- **Documentation** — builds `cargo doc --no-deps` and deploys to GitHub Pages (only on `main`)
 
 ## Adding Features
 

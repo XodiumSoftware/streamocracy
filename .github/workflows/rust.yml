@@ -1,4 +1,4 @@
-name: Xodium CI/CD
+name: Streamocracy CI/CD
 
 on:
   push:
@@ -9,9 +9,6 @@ on:
 
 permissions:
   contents: read
-  packages: write
-  pages: write
-  id-token: write
 
 concurrency:
   group: "${{ github.workflow }}-${{ github.ref }}"
@@ -26,12 +23,10 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
-    environment:
-      name: "${{ github.ref_name }}"
     steps:
       - id: checkout
         name: Checkout
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@v7.0.0
 
       - id: setup_rust
         name: Setup Rust
@@ -39,6 +34,7 @@ jobs:
         with:
           toolchain: stable
           components: rustfmt, clippy
+          cache: false
 
       - id: run_sccache_cache
         name: Run sccache-cache
@@ -51,19 +47,40 @@ jobs:
           cargo fmt --all -- --check
         shell: bash
 
-  build:
-    name: Build
+  test:
+    name: Test
     runs-on: ubuntu-latest
-    environment:
-      name: "${{ github.ref_name }}"
-      url: "${{ steps.upload_artifact.outputs.artifact-url }}"
-    outputs:
-      VERSION: "${{ steps.get_version.outputs.VERSION }}"
-      NAME: "${{ steps.get_name.outputs.NAME }}"
     steps:
       - id: checkout
         name: Checkout
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@v7.0.0
+
+      - id: setup_rust
+        name: Setup Rust
+        uses: actions-rust-lang/setup-rust-toolchain@d197c158264056996cfba74a9c2d93886346edc3
+        with:
+          toolchain: stable
+          cache: false
+
+      - id: run_sccache_cache
+        name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad
+
+      - id: run_tests
+        name: Run Tests
+        run: cargo test --all-features
+        shell: bash
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    outputs:
+      NAME: "${{ steps.get_name.outputs.NAME }}"
+      VERSION: "${{ steps.get_version.outputs.VERSION }}"
+    steps:
+      - id: checkout
+        name: Checkout
+        uses: actions/checkout@v7.0.0
 
       - id: cache_dependencies
         name: Cache dependencies
@@ -72,7 +89,6 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - id: setup_rust
@@ -80,6 +96,7 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@d197c158264056996cfba74a9c2d93886346edc3
         with:
           toolchain: stable
+          cache: false
 
       - id: run_sccache_cache
         name: Run sccache-cache
@@ -87,7 +104,7 @@ jobs:
 
       - id: build_artifact
         name: Build Artefact
-        run: cargo build --release --timings
+        run: cargo build --release
         shell: bash
 
       - id: get_name
@@ -97,30 +114,28 @@ jobs:
 
       - id: get_version
         name: Get Version
-        run: |
-          echo "VERSION=$(cargo pkgid | cut -d# -f2 | cut -d: -f2)" >> $GITHUB_OUTPUT
+        run: echo "VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')" >> $GITHUB_OUTPUT
         shell: bash
 
       - id: upload_artifact
         name: Upload Artifact
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: ${{ steps.get_name.outputs.NAME }}-linux-x64
+          name: ${{ steps.get_name.outputs.NAME }}-v${{ steps.get_version.outputs.VERSION }}-linux-x64
           path: target/release/${{ steps.get_name.outputs.NAME }}
           retention-days: 7
 
   nightly_release:
     name: Nightly Release
-    needs: [ lint, build ]
+    needs: [ lint, test, build ]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    environment:
-      name: "${{ github.ref_name }}"
     permissions:
       contents: write
     steps:
       - id: checkout
         name: Checkout
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@v7.0.0
 
       - id: download_artifacts
         name: Download Artefacts
@@ -153,27 +168,29 @@ jobs:
           prerelease: true
           files: dist/${{ needs.build.outputs.NAME }}*
           tag_name: nightly
-          name: Nightly Build
+          name: Nightly Build (${{ needs.build.outputs.VERSION }})
           body: |
             From commit: ${{ github.sha }}
-            Generated on: ${{ github.event.head_commit.timestamp }}
+            Generated on: ${{ github.event.head_commit.timestamp || github.event.repository.updated_at }}
 
   docker:
     name: Docker
-    needs: [ lint, build ]
+    needs: [ lint, test, build ]
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    environment:
-      name: "${{ github.ref_name }}"
+    permissions:
+      contents: read
+      packages: write
     steps:
       - id: checkout
         name: Checkout
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@v7.0.0
 
       - id: download_artifact
         name: Download Binary Artifact
         uses: actions/download-artifact@v8.0.1
         with:
-          name: ${{ needs.build.outputs.NAME }}-linux-x64
+          name: ${{ needs.build.outputs.NAME }}-v${{ needs.build.outputs.VERSION }}-linux-x64
           path: ./dist/
 
       - id: prepare_binary
@@ -230,7 +247,7 @@ jobs:
 
   docs:
     name: Documentation
-    needs: [ lint, build ]
+    needs: [ lint, test, build ]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
@@ -239,16 +256,21 @@ jobs:
     concurrency:
       group: pages
       cancel-in-progress: false
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     steps:
       - id: checkout
         name: Checkout
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@v7.0.0
 
       - id: setup_rust
         name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@d197c158264056996cfba74a9c2d93886346edc3
         with:
           toolchain: stable
+          cache: false
 
       - id: run_sccache_cache
         name: Run sccache-cache
