@@ -99,15 +99,14 @@ impl Poll for VotekickPoll {
                 "Votekick did not pass - need minimum 2 yes votes (got {})",
                 yes_votes
             );
-            send_temporary_message(
+            self.send_results_message(
                 ctx,
                 channel_id,
                 format!(
                     "📊 Votekick results: **Did not pass**\nNeed at least 2 ✅ votes.\nResults: ✅ {yes_votes} | ❌ {no_votes} (Total votes: {total_votes})",
                 ),
-                self.results_delete_delay_secs,
             )
-                .await;
+            .await;
             return;
         }
 
@@ -116,15 +115,14 @@ impl Poll for VotekickPoll {
                 "Votekick did not pass (yes: {}, no: {})",
                 yes_votes, no_votes
             );
-            send_temporary_message(
+            self.send_results_message(
                 ctx,
                 channel_id,
                 format!(
                     "📊 Votekick results: **Did not pass**\n✅ {yes_votes} | ❌ {no_votes} (Total votes: {total_votes})\n\nYes votes needed to exceed No votes.",
                 ),
-                self.results_delete_delay_secs,
             )
-                .await;
+            .await;
             return;
         }
 
@@ -149,7 +147,7 @@ impl Poll for VotekickPoll {
                 "Target user {} is no longer in a voice channel",
                 target_user_id
             );
-            send_temporary_message(
+            self.send_results_message(
                 ctx,
                 channel_id,
                 format!(
@@ -158,7 +156,6 @@ impl Poll for VotekickPoll {
                     no_votes,
                     target_member.user.mention()
                 ),
-                self.results_delete_delay_secs,
             )
             .await;
             return;
@@ -166,7 +163,7 @@ impl Poll for VotekickPoll {
 
         if let Err(e) = guild_id.disconnect_member(&ctx.http, target_user_id).await {
             error!("Failed to disconnect member: {}", e);
-            send_temporary_message(
+            self.send_results_message(
                 ctx,
                 channel_id,
                 format!(
@@ -176,7 +173,6 @@ impl Poll for VotekickPoll {
                     target_member.user.mention(),
                     e
                 ),
-                self.results_delete_delay_secs,
             )
             .await;
         } else {
@@ -185,7 +181,7 @@ impl Poll for VotekickPoll {
                 target_user_id
             );
 
-            send_temporary_message(
+            self.send_results_message(
                 ctx,
                 channel_id,
                 format!(
@@ -195,10 +191,21 @@ impl Poll for VotekickPoll {
                     no_votes,
                     total_votes
                 ),
-                self.results_delete_delay_secs,
             )
-                .await;
+            .await;
         }
+    }
+}
+
+impl VotekickPoll {
+    /// Send a temporary results message using the configured delete delay.
+    async fn send_results_message(
+        &self,
+        ctx: &Context,
+        channel_id: ChannelId,
+        content: impl Into<String> + Send,
+    ) {
+        send_temporary_message(ctx, channel_id, content, self.results_delete_delay_secs).await;
     }
 }
 
