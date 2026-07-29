@@ -142,6 +142,7 @@ Configuration is loaded from environment variables. A `.env` file can be used fo
 | `MIN_VOTEKICK_DURATION`     | No       | `10`    | Minimum votekick duration in seconds                |
 | `MAX_VOTEKICK_DURATION`     | No       | `300`   | Maximum votekick duration in seconds                |
 | `RESULTS_DELETE_DELAY`      | No       | `10`    | Results message deletion delay in seconds           |
+| `MIN_VOTEKICK_YES_VOTES`    | No       | `2`     | Minimum ✅ votes needed for a votekick to pass        |
 
 ### Docker Compose Example
 

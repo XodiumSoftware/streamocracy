@@ -150,6 +150,7 @@ impl VotekickCommand {
             user_channel_id,
             duration,
             config.results_delete_delay,
+            config.min_votekick_yes_votes,
         )
         .await?;
 
@@ -211,6 +212,7 @@ mod tests {
             min_votekick_duration: 10,
             max_votekick_duration: 300,
             results_delete_delay: 10,
+            min_votekick_yes_votes: 2,
         }
     }
 

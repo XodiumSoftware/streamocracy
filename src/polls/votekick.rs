@@ -36,10 +36,13 @@ pub struct VotekickPoll {
     pub guild_id: GuildId,
     /// Voice channel the target was in
     pub channel_id: ChannelId,
+    /// Minimum yes votes needed for the votekick to pass
+    pub min_yes_votes: u32,
 }
 
 impl VotekickPoll {
     /// Create a new votekick poll.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         initiator_name: String,
         target_name: String,
@@ -48,6 +51,7 @@ impl VotekickPoll {
         target_user_id: UserId,
         guild_id: GuildId,
         channel_id: ChannelId,
+        min_yes_votes: u32,
     ) -> Self {
         Self {
             initiator_name,
@@ -57,6 +61,7 @@ impl VotekickPoll {
             target_user_id,
             guild_id,
             channel_id,
+            min_yes_votes,
         }
     }
 }
@@ -117,7 +122,7 @@ impl Poll for VotekickPoll {
         let target_user_id = metadata.target_user_id;
         let channel_id = metadata.channel_id;
 
-        if yes_votes < 2 {
+        if yes_votes < self.min_yes_votes {
             info!(
                 "Votekick did not pass - need minimum 2 yes votes (got {})",
                 yes_votes
@@ -126,10 +131,11 @@ impl Poll for VotekickPoll {
                 ctx,
                 channel_id,
                 format!(
-                    "📊 Votekick results: **Did not pass**\nNeed at least 2 ✅ votes.\nResults: ✅ {yes_votes} | ❌ {no_votes} (Total votes: {total_votes})",
+                    "📊 Votekick results: **Did not pass**\nNeed at least {} ✅ votes.\nResults: ✅ {yes_votes} | ❌ {no_votes} (Total votes: {total_votes})",
+                    self.min_yes_votes,
                 ),
             )
-            .await;
+                .await;
             return;
         }
 
@@ -241,6 +247,7 @@ pub async fn start_votekick(
     channel_id: ChannelId,
     duration_secs: u64,
     results_delete_delay_secs: u64,
+    min_yes_votes: u32,
 ) -> anyhow::Result<()> {
     let Some(guild_id) = command.guild_id else {
         anyhow::bail!("Votekick used outside guild");
@@ -259,6 +266,7 @@ pub async fn start_votekick(
         target_user_id,
         guild_id,
         channel_id,
+        min_yes_votes,
     );
 
     let message_id = Poll::start(&poll, ctx, command)

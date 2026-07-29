@@ -23,6 +23,8 @@ pub struct Config {
     pub max_votekick_duration: u64,
     /// Results message deletion delay in seconds (default: 10)
     pub results_delete_delay: u64,
+    /// Minimum yes votes required for a votekick to pass (default: 2)
+    pub min_votekick_yes_votes: u32,
     /// Log output format: "pretty" or "json" (default: pretty)
     pub log_format: String,
 }
@@ -57,6 +59,11 @@ impl Config {
             .and_then(|v| v.parse().ok())
             .unwrap_or(10);
 
+        let min_votekick_yes_votes = std::env::var("MIN_VOTEKICK_YES_VOTES")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(2);
+
         let log_format = std::env::var("LOG_FORMAT")
             .map_or_else(|_| "pretty".to_string(), |v| v.to_ascii_lowercase());
 
@@ -68,6 +75,7 @@ impl Config {
             min_votekick_duration,
             max_votekick_duration,
             results_delete_delay,
+            min_votekick_yes_votes,
             log_format,
         })
     }
