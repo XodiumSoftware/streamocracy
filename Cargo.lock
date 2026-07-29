@@ -1240,6 +1240,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "dotenvy",
+ "serde",
+ "serde_json",
  "serenity",
  "tokio",
  "tracing",
