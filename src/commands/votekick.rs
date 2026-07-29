@@ -3,12 +3,26 @@ use crate::config::Config;
 use crate::utils::Utils;
 use serenity::all::{
     ChannelId, CommandInteraction, CommandOptionType, Context, CreateCommand, CreateCommandOption,
-    UserId,
+    GuildId, UserId,
 };
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::LazyLock;
+use tokio::sync::Mutex;
+use tokio::time::Instant;
 use tracing::{error, info, warn};
 
 /// Slash command for starting a votekick poll against a user.
 pub struct VotekickCommand;
+
+/// Key for rate-limiting votekick creation per guild, channel, and initiator.
+type RateLimitKey = (GuildId, ChannelId, UserId);
+
+/// Thread-safe store of the last votekick attempt time per rate-limit key.
+type LastVotekicks = Arc<Mutex<HashMap<RateLimitKey, Instant>>>;
+
+static LAST_VOTEKICKS: LazyLock<LastVotekicks> =
+    LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 #[serenity::async_trait]
 impl SlashCommand for VotekickCommand {
@@ -56,6 +70,7 @@ impl SlashCommand for VotekickCommand {
 impl VotekickCommand {
     /// Internal implementation of the votekick command.
     /// Validates preconditions and starts the poll if all checks pass.
+    #[allow(clippy::too_many_lines)]
     async fn run_internal(
         &self,
         ctx: &Context,
@@ -83,6 +98,55 @@ impl VotekickCommand {
             return Ok(());
         };
 
+        let Some(user_channel_id) = Self::get_user_voice_channel(ctx, guild_id, user.id) else {
+            warn!("{} tried votekick but is not in a voice channel", user.name);
+            Utils::ephemeral_response(
+                &ctx.http,
+                command,
+                "You must be in a voice channel to use this command.",
+            )
+            .await;
+            return Ok(());
+        };
+
+        if let Some(remaining) = Self::rate_limit_remaining(
+            guild_id,
+            user_channel_id,
+            user.id,
+            config.votekick_rate_limit_secs,
+        )
+        .await
+        {
+            warn!(
+                "Votekick rate limited for {} in guild {} channel {} ({}s remaining)",
+                user.name,
+                guild_id,
+                user_channel_id,
+                remaining.as_secs()
+            );
+            Utils::ephemeral_response(
+                &ctx.http,
+                command,
+                format!(
+                    "Please wait {} seconds before starting another votekick.",
+                    remaining.as_secs()
+                ),
+            )
+            .await;
+            return Ok(());
+        }
+
+        let Some(user_channel_id) = Self::get_user_voice_channel(ctx, guild_id, user.id) else {
+            warn!("{} tried votekick but is not in a voice channel", user.name);
+            Utils::ephemeral_response(
+                &ctx.http,
+                command,
+                "You must be in a voice channel to use this command.",
+            )
+            .await;
+            return Ok(());
+        };
+
         let target_user_id = command
             .data
             .options
@@ -98,17 +162,6 @@ impl VotekickCommand {
                 .and_then(|opt| opt.value.as_i64()),
             config,
         );
-
-        let Some(user_channel_id) = Self::get_user_voice_channel(ctx, guild_id, user.id) else {
-            warn!("{} tried votekick but is not in a voice channel", user.name);
-            Utils::ephemeral_response(
-                &ctx.http,
-                command,
-                "You must be in a voice channel to use this command.",
-            )
-            .await;
-            return Ok(());
-        };
 
         let (target_in_same_channel, target_screensharing) =
             Self::check_target_user(ctx, guild_id, target_user_id, user_channel_id);
@@ -154,6 +207,8 @@ impl VotekickCommand {
         )
         .await?;
 
+        Self::record_votekick(guild_id, user_channel_id, user.id).await;
+
         Ok(())
     }
 
@@ -164,6 +219,27 @@ impl VotekickCommand {
             let v = u64::try_from(v.max(0)).unwrap_or(config.default_votekick_duration);
             v.clamp(config.min_votekick_duration, config.max_votekick_duration)
         })
+    }
+
+    /// Record a votekick attempt for rate-limiting purposes.
+    async fn record_votekick(guild_id: GuildId, channel_id: ChannelId, initiator_id: UserId) {
+        let mut active = LAST_VOTEKICKS.lock().await;
+        active.insert((guild_id, channel_id, initiator_id), Instant::now());
+    }
+
+    /// Check whether a votekick is currently rate limited.
+    /// Returns the remaining cooldown if one is active, or `None` if allowed.
+    async fn rate_limit_remaining(
+        guild_id: GuildId,
+        channel_id: ChannelId,
+        initiator_id: UserId,
+        rate_limit_secs: u64,
+    ) -> Option<std::time::Duration> {
+        let active = LAST_VOTEKICKS.lock().await;
+        let last = active.get(&(guild_id, channel_id, initiator_id))?;
+        let elapsed = last.elapsed();
+        let cooldown = std::time::Duration::from_secs(rate_limit_secs);
+        cooldown.checked_sub(elapsed)
     }
 
     /// Get the voice channel ID for a user in a guild.
@@ -213,6 +289,7 @@ mod tests {
             max_votekick_duration: 300,
             results_delete_delay: 10,
             min_votekick_yes_votes: 2,
+            votekick_rate_limit_secs: 60,
         }
     }
 
