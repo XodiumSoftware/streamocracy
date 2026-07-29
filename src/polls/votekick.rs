@@ -1,24 +1,22 @@
 //! Votekick poll implementation
 
-use crate::polls::{Poll, schedule_poll_completion, send_temporary_message};
+use crate::polls::{Poll, PollInfo, schedule_poll_completion, send_temporary_message};
 use anyhow::Context as AnyhowContext;
 use serenity::all::{ChannelId, CommandInteraction, Context, CreateEmbed, UserId};
 use serenity::prelude::Mentionable;
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::LazyLock;
-use tokio::sync::Mutex;
 use tracing::{error, info, warn};
 
 /// Metadata for active votekicks.
-/// (`target_user_id`, `guild_id`, `channel_id`)
-type VotekickMetadata = (u64, u64, u64);
-
-/// Thread-safe storage for active votekick metadata.
-type ActiveVotekicks = Arc<Mutex<HashMap<u64, VotekickMetadata>>>;
-
-static ACTIVE_VOTEKICKS: LazyLock<ActiveVotekicks> =
-    LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
+#[derive(Clone, Copy, Debug)]
+#[allow(clippy::struct_field_names)]
+pub struct VotekickMetadata {
+    /// Target user ID
+    pub target_user_id: u64,
+    /// Guild where the votekick was started
+    pub guild_id: u64,
+    /// Voice channel the target was in
+    pub channel_id: u64,
+}
 
 /// A poll for voting to kick a user from a voice channel.
 pub struct VotekickPoll {
@@ -30,6 +28,12 @@ pub struct VotekickPoll {
     pub duration_secs: u64,
     /// How long result messages remain before deletion, in seconds
     pub results_delete_delay_secs: u64,
+    /// Target user ID
+    pub target_user_id: u64,
+    /// Guild where the votekick was started
+    pub guild_id: u64,
+    /// Voice channel the target was in
+    pub channel_id: u64,
 }
 
 impl VotekickPoll {
@@ -39,12 +43,18 @@ impl VotekickPoll {
         target_name: String,
         duration_secs: u64,
         results_delete_delay_secs: u64,
+        target_user_id: u64,
+        guild_id: u64,
+        channel_id: u64,
     ) -> Self {
         Self {
             initiator_name,
             target_name,
             duration_secs,
             results_delete_delay_secs,
+            target_user_id,
+            guild_id,
+            channel_id,
         }
     }
 }
@@ -52,6 +62,15 @@ impl VotekickPoll {
 #[allow(clippy::too_many_lines)]
 #[serenity::async_trait]
 impl Poll for VotekickPoll {
+    /// Provide votekick metadata so it is stored with the active poll record.
+    fn metadata(&self) -> Option<VotekickMetadata> {
+        Some(VotekickMetadata {
+            target_user_id: self.target_user_id,
+            guild_id: self.guild_id,
+            channel_id: self.channel_id,
+        })
+    }
+
     fn title(&self) -> String {
         "📊 Votekick Started".to_string()
     }
@@ -78,21 +97,23 @@ impl Poll for VotekickPoll {
             )))
     }
 
-    async fn on_complete(&self, ctx: &Context, message_id: u64, yes_votes: u32, no_votes: u32) {
+    async fn on_complete(
+        &self,
+        ctx: &Context,
+        message_id: u64,
+        yes_votes: u32,
+        no_votes: u32,
+        info: PollInfo,
+    ) {
         let total_votes = yes_votes + no_votes;
-        let (target_user_id, guild_id, channel_id) = {
-            let mut active = ACTIVE_VOTEKICKS.lock().await;
-            if let Some(info) = active.remove(&message_id) {
-                info
-            } else {
-                warn!("No votekick metadata found for message {}", message_id);
-                return;
-            }
+        let Some(metadata) = info.votekick else {
+            warn!("No votekick metadata found for message {}", message_id);
+            return;
         };
 
-        let guild_id = serenity::all::GuildId::new(guild_id);
-        let target_user_id = UserId::new(target_user_id);
-        let channel_id = ChannelId::new(channel_id);
+        let guild_id = serenity::all::GuildId::new(metadata.guild_id);
+        let target_user_id = UserId::new(metadata.target_user_id);
+        let channel_id = ChannelId::new(metadata.channel_id);
 
         if yes_votes < 2 {
             info!(
@@ -233,19 +254,14 @@ pub async fn start_votekick(
         target_member.user.name,
         duration_secs,
         results_delete_delay_secs,
+        target_user_id.get(),
+        guild_id.get(),
+        channel_id.get(),
     );
 
     let message_id = Poll::start(&poll, ctx, command)
         .await
         .context("Failed to start votekick poll")?;
-
-    {
-        let mut active = ACTIVE_VOTEKICKS.lock().await;
-        active.insert(
-            message_id,
-            (target_user_id.get(), guild_id.get(), channel_id.get()),
-        );
-    }
 
     info!(
         "Votekick poll created for {} (message_id: {})",

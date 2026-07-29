@@ -16,6 +16,8 @@ pub mod votekick;
 pub struct PollInfo {
     /// Channel where poll was created
     pub channel_id: u64,
+    /// Votekick-specific metadata, if this poll is a votekick
+    pub votekick: Option<votekick::VotekickMetadata>,
 }
 
 /// Thread-safe storage for active polls
@@ -55,7 +57,19 @@ pub trait Poll: Send + Sync {
 
     /// Called when the poll ends with results.
     /// `yes_votes` and `no_votes` are counts excluding the bot.
-    async fn on_complete(&self, ctx: &Context, message_id: u64, yes_votes: u32, no_votes: u32);
+    async fn on_complete(
+        &self,
+        ctx: &Context,
+        message_id: u64,
+        yes_votes: u32,
+        no_votes: u32,
+        info: PollInfo,
+    );
+
+    /// Optional poll-specific metadata stored alongside `PollInfo`.
+    fn metadata(&self) -> Option<votekick::VotekickMetadata> {
+        None
+    }
 
     /// Start the poll by sending the embed and adding reactions.
     /// Returns the message ID of the created poll.
@@ -85,11 +99,13 @@ pub trait Poll: Send + Sync {
         let message_id = message.id.get();
 
         {
+            let metadata = self.metadata();
             let mut active = ACTIVE_POLLS.lock().await;
             active.insert(
                 message_id,
                 PollInfo {
                     channel_id: message.channel_id.get(),
+                    votekick: metadata,
                 },
             );
         }
@@ -148,7 +164,8 @@ async fn complete_poll<P: Poll>(poll: &P, ctx: &Context, message_id: u64) {
         warn!("Failed to delete poll message: {}", e);
     }
 
-    poll.on_complete(ctx, message_id, yes_votes, no_votes).await;
+    poll.on_complete(ctx, message_id, yes_votes, no_votes, poll_info)
+        .await;
 }
 
 /// Count users who reacted with a specific emoji, excluding the bot.
