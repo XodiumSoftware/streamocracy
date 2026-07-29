@@ -58,8 +58,7 @@ impl Config {
             .unwrap_or(10);
 
         let log_format = std::env::var("LOG_FORMAT")
-            .map(|v| v.to_ascii_lowercase())
-            .unwrap_or_else(|_| "pretty".to_string());
+            .map_or_else(|_| "pretty".to_string(), |v| v.to_ascii_lowercase());
 
         Ok(Self {
             discord_token,

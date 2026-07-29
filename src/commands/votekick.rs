@@ -16,6 +16,11 @@ impl SlashCommand for VotekickCommand {
     }
 
     fn register(&self, config: &Config) -> CreateCommand {
+        #[allow(clippy::cast_precision_loss)]
+        let min_duration = config.min_votekick_duration as f64;
+        #[allow(clippy::cast_precision_loss)]
+        let max_duration = config.max_votekick_duration as f64;
+
         CreateCommand::new(self.name())
             .description("Start a votekick poll against a user")
             .add_option(
@@ -29,8 +34,8 @@ impl SlashCommand for VotekickCommand {
                     "Poll duration in seconds",
                 )
                 .required(false)
-                .min_number_value(config.min_votekick_duration as f64)
-                .max_number_value(config.max_votekick_duration as f64),
+                .min_number_value(min_duration)
+                .max_number_value(max_duration),
             )
     }
 
