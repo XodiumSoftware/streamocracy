@@ -78,6 +78,20 @@ impl Poll for VotekickPoll {
         })
     }
 
+    /// Only users in the same voice channel as the target may vote.
+    async fn is_eligible_voter(&self, ctx: &Context, user_id: UserId, info: &PollInfo) -> bool {
+        let Some(metadata) = info.votekick else {
+            return false;
+        };
+        let Some(guild) = ctx.cache.guild(metadata.guild_id) else {
+            return false;
+        };
+        let Some(vs) = guild.voice_states.get(&user_id) else {
+            return false;
+        };
+        vs.channel_id == Some(metadata.channel_id)
+    }
+
     fn title(&self) -> String {
         "📊 Votekick Started".to_string()
     }

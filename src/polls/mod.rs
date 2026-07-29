@@ -3,7 +3,7 @@
 use serenity::all::{
     ChannelId, CommandInteraction, Context, CreateEmbed, MessageId, ReactionType, UserId,
 };
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::LazyLock;
 use std::time::Duration;
@@ -71,6 +71,12 @@ pub trait Poll: Send + Sync {
     /// Optional poll-specific metadata stored alongside `PollInfo`.
     fn metadata(&self) -> Option<votekick::VotekickMetadata> {
         None
+    }
+
+    /// Determine whether a user is eligible to vote in this poll.
+    /// Defaults to `true`; votekick polls override this to restrict by voice channel.
+    async fn is_eligible_voter(&self, _ctx: &Context, _user_id: UserId, _info: &PollInfo) -> bool {
+        true
     }
 
     /// Start the poll by sending the embed and adding reactions.
@@ -156,10 +162,7 @@ async fn complete_poll<P: Poll>(poll: &P, ctx: &Context, message_id: MessageId) 
         }
     };
 
-    let yes_reaction = poll.yes_reaction();
-    let no_reaction = poll.no_reaction();
-    let yes_votes = get_reaction_count(&ctx.http, &message, &yes_reaction).await;
-    let no_votes = get_reaction_count(&ctx.http, &message, &no_reaction).await;
+    let (yes_votes, no_votes) = count_eligible_votes(poll, ctx, &message, &poll_info).await;
 
     info!(
         "Poll results for message {}: Yes={}, No={}",
@@ -174,18 +177,62 @@ async fn complete_poll<P: Poll>(poll: &P, ctx: &Context, message_id: MessageId) 
         .await;
 }
 
-/// Count users who reacted with a specific emoji, excluding the bot.
-async fn get_reaction_count(
-    http: &serenity::all::Http,
+/// Count eligible yes/no votes for a poll, excluding the bot and preventing duplicate votes.
+async fn count_eligible_votes<P: Poll>(
+    poll: &P,
+    ctx: &Context,
     message: &serenity::all::Message,
-    reaction_type: &ReactionType,
-) -> u32 {
-    let mut count = 0u32;
+    info: &PollInfo,
+) -> (u32, u32) {
+    let bot_id = message.author.id;
+
+    let mut voters: HashSet<UserId> = HashSet::new();
+    let mut yes_votes = 0u32;
+    let mut no_votes = 0u32;
+
+    count_eligible_reactions(
+        poll,
+        ctx,
+        message,
+        info,
+        bot_id,
+        &mut voters,
+        &mut yes_votes,
+        poll.yes_reaction(),
+    )
+    .await;
+    count_eligible_reactions(
+        poll,
+        ctx,
+        message,
+        info,
+        bot_id,
+        &mut voters,
+        &mut no_votes,
+        poll.no_reaction(),
+    )
+    .await;
+
+    (yes_votes, no_votes)
+}
+
+/// Iterate through all pages of a reaction and count eligible, non-duplicate voters.
+#[allow(clippy::too_many_arguments)]
+async fn count_eligible_reactions<P: Poll>(
+    poll: &P,
+    ctx: &Context,
+    message: &serenity::all::Message,
+    info: &PollInfo,
+    bot_id: UserId,
+    voters: &mut HashSet<UserId>,
+    counter: &mut u32,
+    reaction_type: ReactionType,
+) {
     let mut after: Option<UserId> = None;
 
     loop {
         let users = match message
-            .reaction_users(http, reaction_type.clone(), Some(100u8), after)
+            .reaction_users(&ctx.http, reaction_type.clone(), Some(100u8), after)
             .await
         {
             Ok(u) => u,
@@ -200,8 +247,12 @@ async fn get_reaction_count(
         }
 
         for user in &users {
-            if user.id != message.author.id {
-                count += 1;
+            if user.id == bot_id || voters.contains(&user.id) {
+                continue;
+            }
+            if poll.is_eligible_voter(ctx, user.id, info).await {
+                voters.insert(user.id);
+                *counter += 1;
             }
         }
 
@@ -211,8 +262,6 @@ async fn get_reaction_count(
 
         after = users.last().map(|u| u.id);
     }
-
-    count
 }
 
 /// Send a message that auto-deletes after a specified number of seconds.
