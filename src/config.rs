@@ -23,6 +23,8 @@ pub struct Config {
     pub max_votekick_duration: u64,
     /// Results message deletion delay in seconds (default: 10)
     pub results_delete_delay: u64,
+    /// Log output format: "pretty" or "json" (default: pretty)
+    pub log_format: String,
 }
 
 impl Config {
@@ -55,6 +57,10 @@ impl Config {
             .and_then(|v| v.parse().ok())
             .unwrap_or(10);
 
+        let log_format = std::env::var("LOG_FORMAT")
+            .map(|v| v.to_ascii_lowercase())
+            .unwrap_or_else(|_| "pretty".to_string());
+
         Ok(Self {
             discord_token,
             guild_id,
@@ -63,6 +69,7 @@ impl Config {
             min_votekick_duration,
             max_votekick_duration,
             results_delete_delay,
+            log_format,
         })
     }
 
@@ -75,12 +82,23 @@ impl Config {
 /// Load config and set up logging
 pub fn init() -> anyhow::Result<Config> {
     let config = Config::from_env()?;
-    let subscriber = tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(&config.log_level)),
-        )
-        .finish();
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new(&config.log_level));
+
+    let subscriber: Box<dyn tracing::Subscriber + Send + Sync> = match config.log_format.as_str() {
+        "json" => Box::new(
+            tracing_subscriber::fmt()
+                .with_env_filter(env_filter)
+                .json()
+                .finish(),
+        ),
+        _ => Box::new(
+            tracing_subscriber::fmt()
+                .with_env_filter(env_filter)
+                .pretty()
+                .finish(),
+        ),
+    };
 
     tracing::subscriber::set_global_default(subscriber)
         .context("Failed to set global default subscriber")?;

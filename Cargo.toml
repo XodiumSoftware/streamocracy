@@ -13,7 +13,7 @@ path = "src/main.rs"
 serenity = { version = "0.12", default-features = false, features = ["client", "gateway", "rustls_backend", "model", "cache"] }
 tokio = { version = "1.52", features = ["macros", "rt-multi-thread", "signal"] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 anyhow = "1.0"
 dotenvy = "0.15"
 
