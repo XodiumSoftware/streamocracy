@@ -74,15 +74,14 @@ impl VotekickCommand {
             .and_then(|opt| opt.value.as_user_id())
             .expect("User option is required");
 
-        let duration = command
-            .data
-            .options
-            .get(1)
-            .and_then(|opt| opt.value.as_i64())
-            .map_or(config.default_votekick_duration, |v| {
-                let v = u64::try_from(v.max(0)).unwrap_or(config.default_votekick_duration);
-                v.clamp(config.min_votekick_duration, config.max_votekick_duration)
-            });
+        let duration = Self::resolve_duration(
+            command
+                .data
+                .options
+                .get(1)
+                .and_then(|opt| opt.value.as_i64()),
+            config,
+        );
 
         let Some(user_channel_id) = Self::get_user_voice_channel(ctx, guild_id, user.id) else {
             warn!("{} tried votekick but is not in a voice channel", user.name);
@@ -141,6 +140,15 @@ impl VotekickCommand {
         Ok(())
     }
 
+    /// Resolve the poll duration from the optional integer command argument.
+    /// Falls back to the configured default and clamps to [min, max].
+    fn resolve_duration(raw: Option<i64>, config: &Config) -> u64 {
+        raw.map_or(config.default_votekick_duration, |v| {
+            let v = u64::try_from(v.max(0)).unwrap_or(config.default_votekick_duration);
+            v.clamp(config.min_votekick_duration, config.max_votekick_duration)
+        })
+    }
+
     /// Get the voice channel ID for a user in a guild.
     fn get_user_voice_channel(
         ctx: &Context,
@@ -186,5 +194,52 @@ impl VotekickCommand {
         {
             error!("Failed to send error response: {}", e);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::Config;
+
+    fn test_config() -> Config {
+        Config {
+            discord_token: "test".to_string(),
+            guild_id: None,
+            log_level: "info".to_string(),
+            log_format: "pretty".to_string(),
+            default_votekick_duration: 60,
+            min_votekick_duration: 10,
+            max_votekick_duration: 300,
+            results_delete_delay: 10,
+        }
+    }
+
+    #[test]
+    fn resolve_duration_uses_default_when_missing() {
+        let config = test_config();
+        assert_eq!(VotekickCommand::resolve_duration(None, &config), 60);
+    }
+
+    #[test]
+    fn resolve_duration_clamps_to_minimum() {
+        let config = test_config();
+        assert_eq!(VotekickCommand::resolve_duration(Some(5), &config), 10);
+        assert_eq!(VotekickCommand::resolve_duration(Some(0), &config), 10);
+        assert_eq!(VotekickCommand::resolve_duration(Some(-5), &config), 10);
+    }
+
+    #[test]
+    fn resolve_duration_clamps_to_maximum() {
+        let config = test_config();
+        assert_eq!(VotekickCommand::resolve_duration(Some(500), &config), 300);
+    }
+
+    #[test]
+    fn resolve_duration_keeps_values_in_range() {
+        let config = test_config();
+        assert_eq!(VotekickCommand::resolve_duration(Some(30), &config), 30);
+        assert_eq!(VotekickCommand::resolve_duration(Some(10), &config), 10);
+        assert_eq!(VotekickCommand::resolve_duration(Some(300), &config), 300);
     }
 }
