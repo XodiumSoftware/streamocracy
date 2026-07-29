@@ -27,15 +27,23 @@ pub struct VotekickPoll {
     pub target_name: String,
     /// Poll duration in seconds
     pub duration_secs: u64,
+    /// How long result messages remain before deletion, in seconds
+    pub results_delete_delay_secs: u64,
 }
 
 impl VotekickPoll {
     /// Create a new votekick poll.
-    pub fn new(initiator_name: String, target_name: String, duration_secs: u64) -> Self {
+    pub fn new(
+        initiator_name: String,
+        target_name: String,
+        duration_secs: u64,
+        results_delete_delay_secs: u64,
+    ) -> Self {
         Self {
             initiator_name,
             target_name,
             duration_secs,
+            results_delete_delay_secs,
         }
     }
 }
@@ -96,7 +104,7 @@ impl Poll for VotekickPoll {
                 format!(
                     "📊 Votekick results: **Did not pass**\nNeed at least 2 ✅ votes.\nResults: ✅ {yes_votes} | ❌ {no_votes} (Total votes: {total_votes})",
                 ),
-                10,
+                self.results_delete_delay_secs,
             )
                 .await;
             return;
@@ -113,7 +121,7 @@ impl Poll for VotekickPoll {
                 format!(
                     "📊 Votekick results: **Did not pass**\n✅ {yes_votes} | ❌ {no_votes} (Total votes: {total_votes})\n\nYes votes needed to exceed No votes.",
                 ),
-                10,
+                self.results_delete_delay_secs,
             )
                 .await;
             return;
@@ -149,7 +157,7 @@ impl Poll for VotekickPoll {
                     no_votes,
                     target_member.user.mention()
                 ),
-                10,
+                self.results_delete_delay_secs,
             )
             .await;
             return;
@@ -167,7 +175,7 @@ impl Poll for VotekickPoll {
                     target_member.user.mention(),
                     e
                 ),
-                10,
+                self.results_delete_delay_secs,
             )
             .await;
         } else {
@@ -186,7 +194,7 @@ impl Poll for VotekickPoll {
                     no_votes,
                     total_votes
                 ),
-                10,
+                self.results_delete_delay_secs,
             )
                 .await;
         }
@@ -201,6 +209,7 @@ pub async fn start_votekick(
     target_user_id: UserId,
     channel_id: ChannelId,
     duration_secs: u64,
+    results_delete_delay_secs: u64,
 ) {
     let Some(guild_id) = command.guild_id else {
         error!("Votekick used outside guild");
@@ -219,6 +228,7 @@ pub async fn start_votekick(
         command.user.name.clone(),
         target_member.user.name,
         duration_secs,
+        results_delete_delay_secs,
     );
 
     match Poll::start(&poll, ctx, command).await {

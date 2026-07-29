@@ -134,6 +134,7 @@ impl VotekickCommand {
             target_user_id,
             user_channel_id,
             duration,
+            config.results_delete_delay,
         )
         .await;
 
