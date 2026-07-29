@@ -1,6 +1,8 @@
 //! Poll functionality for the Streamocracy bot
 
-use serenity::all::{CommandInteraction, Context, CreateEmbed, ReactionType, UserId};
+use serenity::all::{
+    ChannelId, CommandInteraction, Context, CreateEmbed, MessageId, ReactionType, UserId,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::LazyLock;
@@ -15,13 +17,13 @@ pub mod votekick;
 #[derive(Clone)]
 pub struct PollInfo {
     /// Channel where poll was created
-    pub channel_id: u64,
+    pub channel_id: ChannelId,
     /// Votekick-specific metadata, if this poll is a votekick
     pub votekick: Option<votekick::VotekickMetadata>,
 }
 
 /// Thread-safe storage for active polls
-type ActivePolls = Arc<Mutex<HashMap<u64, PollInfo>>>;
+type ActivePolls = Arc<Mutex<HashMap<MessageId, PollInfo>>>;
 
 static ACTIVE_POLLS: LazyLock<ActivePolls> = LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
@@ -60,7 +62,7 @@ pub trait Poll: Send + Sync {
     async fn on_complete(
         &self,
         ctx: &Context,
-        message_id: u64,
+        message_id: MessageId,
         yes_votes: u32,
         no_votes: u32,
         info: PollInfo,
@@ -73,7 +75,11 @@ pub trait Poll: Send + Sync {
 
     /// Start the poll by sending the embed and adding reactions.
     /// Returns the message ID of the created poll.
-    async fn start(&self, ctx: &Context, command: &CommandInteraction) -> anyhow::Result<u64> {
+    async fn start(
+        &self,
+        ctx: &Context,
+        command: &CommandInteraction,
+    ) -> anyhow::Result<MessageId> {
         let embed = self.build_embed();
 
         command
@@ -96,7 +102,7 @@ pub trait Poll: Send + Sync {
             error!("Failed to add no reaction: {}", e);
         }
 
-        let message_id = message.id.get();
+        let message_id = message.id;
 
         {
             let metadata = self.metadata();
@@ -104,7 +110,7 @@ pub trait Poll: Send + Sync {
             active.insert(
                 message_id,
                 PollInfo {
-                    channel_id: message.channel_id.get(),
+                    channel_id: message.channel_id,
                     votekick: metadata,
                 },
             );
@@ -119,7 +125,7 @@ pub trait Poll: Send + Sync {
 pub async fn schedule_poll_completion<P: Poll + 'static>(
     poll: P,
     ctx: Context,
-    message_id: u64,
+    message_id: MessageId,
     duration_secs: u64,
 ) {
     let ctx_clone = ctx.clone();
@@ -130,7 +136,7 @@ pub async fn schedule_poll_completion<P: Poll + 'static>(
 }
 
 /// Complete a poll by counting votes and calling `on_complete`.
-async fn complete_poll<P: Poll>(poll: &P, ctx: &Context, message_id: u64) {
+async fn complete_poll<P: Poll>(poll: &P, ctx: &Context, message_id: MessageId) {
     let poll_info = {
         let mut active = ACTIVE_POLLS.lock().await;
         if let Some(info) = active.remove(&message_id) {
@@ -141,7 +147,7 @@ async fn complete_poll<P: Poll>(poll: &P, ctx: &Context, message_id: u64) {
         }
     };
 
-    let channel_id = serenity::all::ChannelId::new(poll_info.channel_id);
+    let channel_id = poll_info.channel_id;
     let message = match channel_id.message(&ctx.http, message_id).await {
         Ok(m) => m,
         Err(e) => {

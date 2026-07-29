@@ -2,7 +2,9 @@
 
 use crate::polls::{Poll, PollInfo, schedule_poll_completion, send_temporary_message};
 use anyhow::Context as AnyhowContext;
-use serenity::all::{ChannelId, CommandInteraction, Context, CreateEmbed, UserId};
+use serenity::all::{
+    ChannelId, CommandInteraction, Context, CreateEmbed, GuildId, MessageId, UserId,
+};
 use serenity::prelude::Mentionable;
 use tracing::{error, info, warn};
 
@@ -11,11 +13,11 @@ use tracing::{error, info, warn};
 #[allow(clippy::struct_field_names)]
 pub struct VotekickMetadata {
     /// Target user ID
-    pub target_user_id: u64,
+    pub target_user_id: UserId,
     /// Guild where the votekick was started
-    pub guild_id: u64,
+    pub guild_id: GuildId,
     /// Voice channel the target was in
-    pub channel_id: u64,
+    pub channel_id: ChannelId,
 }
 
 /// A poll for voting to kick a user from a voice channel.
@@ -29,11 +31,11 @@ pub struct VotekickPoll {
     /// How long result messages remain before deletion, in seconds
     pub results_delete_delay_secs: u64,
     /// Target user ID
-    pub target_user_id: u64,
+    pub target_user_id: UserId,
     /// Guild where the votekick was started
-    pub guild_id: u64,
+    pub guild_id: GuildId,
     /// Voice channel the target was in
-    pub channel_id: u64,
+    pub channel_id: ChannelId,
 }
 
 impl VotekickPoll {
@@ -43,9 +45,9 @@ impl VotekickPoll {
         target_name: String,
         duration_secs: u64,
         results_delete_delay_secs: u64,
-        target_user_id: u64,
-        guild_id: u64,
-        channel_id: u64,
+        target_user_id: UserId,
+        guild_id: GuildId,
+        channel_id: ChannelId,
     ) -> Self {
         Self {
             initiator_name,
@@ -100,20 +102,20 @@ impl Poll for VotekickPoll {
     async fn on_complete(
         &self,
         ctx: &Context,
-        message_id: u64,
+        _message_id: MessageId,
         yes_votes: u32,
         no_votes: u32,
         info: PollInfo,
     ) {
         let total_votes = yes_votes + no_votes;
         let Some(metadata) = info.votekick else {
-            warn!("No votekick metadata found for message {}", message_id);
+            warn!("No votekick metadata found");
             return;
         };
 
-        let guild_id = serenity::all::GuildId::new(metadata.guild_id);
-        let target_user_id = UserId::new(metadata.target_user_id);
-        let channel_id = ChannelId::new(metadata.channel_id);
+        let guild_id = metadata.guild_id;
+        let target_user_id = metadata.target_user_id;
+        let channel_id = metadata.channel_id;
 
         if yes_votes < 2 {
             info!(
@@ -254,9 +256,9 @@ pub async fn start_votekick(
         target_member.user.name,
         duration_secs,
         results_delete_delay_secs,
-        target_user_id.get(),
-        guild_id.get(),
-        channel_id.get(),
+        target_user_id,
+        guild_id,
+        channel_id,
     );
 
     let message_id = Poll::start(&poll, ctx, command)
