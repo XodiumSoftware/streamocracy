@@ -1,12 +1,14 @@
 //! Poll functionality for the Streamocracy bot
 
+use crate::polls::votekick::{VotekickMetadata, VotekickPoll};
 use serenity::all::{
     ChannelId, CommandInteraction, Context, CreateEmbed, MessageId, ReactionType, UserId,
 };
 use std::collections::{HashMap, HashSet};
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::LazyLock;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 use tokio::time::sleep;
 use tracing::{error, info, warn};
@@ -127,6 +129,153 @@ pub trait Poll: Send + Sync {
     }
 }
 
+/// Persisted record of an active poll.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct PersistedPoll {
+    /// The Discord message ID hosting the poll
+    message_id: u64,
+    /// The channel the poll message was posted in
+    channel_id: u64,
+    /// Unix timestamp (seconds) when the poll should complete
+    end_time: u64,
+    /// Votekick metadata, if this is a votekick poll
+    votekick: Option<votekick::VotekickMetadata>,
+}
+
+/// Persist active poll state so it can survive a restart.
+pub async fn persist_active_poll(
+    message_id: MessageId,
+    metadata: VotekickMetadata,
+    duration_secs: u64,
+) {
+    let path = active_polls_path();
+    let mut state = load_persisted_state(&path).await.unwrap_or_default();
+
+    let end_time = unix_now() + duration_secs;
+    state.push(PersistedPoll {
+        message_id: message_id.get(),
+        channel_id: metadata.channel_id.get(),
+        end_time,
+        votekick: Some(metadata),
+    });
+
+    if let Err(e) = write_persisted_state(&path, &state).await {
+        error!("Failed to persist active poll state: {}", e);
+    }
+}
+
+/// Remove a poll from persistent state once it has completed.
+pub async fn remove_persisted_poll(message_id: MessageId) {
+    let path = active_polls_path();
+    let state = match load_persisted_state(&path).await {
+        Ok(s) => s,
+        Err(e) => {
+            warn!("Failed to load persisted poll state for removal: {}", e);
+            return;
+        }
+    };
+
+    let id = message_id.get();
+    let retained: Vec<_> = state.into_iter().filter(|p| p.message_id != id).collect();
+
+    if let Err(e) = write_persisted_state(&path, &retained).await {
+        error!("Failed to write persisted poll state after removal: {}", e);
+    }
+}
+
+/// Resume polls from persisted state and schedule any that have not yet ended.
+pub async fn resume_polls(ctx: &Context) {
+    let path = active_polls_path();
+    let state = match load_persisted_state(&path).await {
+        Ok(s) => s,
+        Err(e) => {
+            warn!("Failed to load persisted poll state: {}", e);
+            return;
+        }
+    };
+
+    let now = unix_now();
+    let mut retained = Vec::new();
+
+    for record in state {
+        let Some(ref metadata) = record.votekick else {
+            continue;
+        };
+        let poll = VotekickPoll::from_metadata(metadata, metadata.results_delete_delay_secs);
+
+        let message_id = MessageId::new(record.message_id);
+        let channel_id = ChannelId::new(record.channel_id);
+
+        if record.end_time <= now {
+            info!(
+                "Completing overdue votekick poll (message_id: {})",
+                message_id
+            );
+            {
+                let mut active = ACTIVE_POLLS.lock().await;
+                active.insert(
+                    message_id,
+                    PollInfo {
+                        channel_id,
+                        votekick: Some(metadata.clone()),
+                    },
+                );
+            }
+            complete_poll(&poll, ctx, message_id).await;
+        } else {
+            info!(
+                "Resuming votekick poll (message_id: {}, remaining: {}s)",
+                message_id,
+                record.end_time - now
+            );
+            {
+                let mut active = ACTIVE_POLLS.lock().await;
+                active.insert(
+                    message_id,
+                    PollInfo {
+                        channel_id,
+                        votekick: Some(metadata.clone()),
+                    },
+                );
+            }
+            schedule_poll_completion(poll, ctx.clone(), message_id, record.end_time - now).await;
+            retained.push(record);
+        }
+    }
+
+    if let Err(e) = write_persisted_state(&path, &retained).await {
+        error!("Failed to write persisted poll state after resume: {}", e);
+    }
+}
+
+fn active_polls_path() -> std::path::PathBuf {
+    std::env::var("POLL_STATE_FILE").map_or_else(
+        |_| std::path::PathBuf::from("poll_state.json"),
+        std::path::PathBuf::from,
+    )
+}
+
+fn unix_now() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
+
+async fn load_persisted_state(path: &Path) -> anyhow::Result<Vec<PersistedPoll>> {
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let contents = tokio::fs::read_to_string(path).await?;
+    Ok(serde_json::from_str(&contents)?)
+}
+
+async fn write_persisted_state(path: &Path, state: &[PersistedPoll]) -> anyhow::Result<()> {
+    let contents = serde_json::to_string_pretty(state)?;
+    tokio::fs::write(path, contents).await?;
+    Ok(())
+}
+
 /// Schedule a poll to complete after its duration.
 pub async fn schedule_poll_completion<P: Poll + 'static>(
     poll: P,
@@ -172,6 +321,8 @@ async fn complete_poll<P: Poll>(poll: &P, ctx: &Context, message_id: MessageId) 
     if let Err(e) = channel_id.delete_message(&ctx.http, message_id).await {
         warn!("Failed to delete poll message: {}", e);
     }
+
+    remove_persisted_poll(message_id).await;
 
     poll.on_complete(ctx, message_id, yes_votes, no_votes, poll_info)
         .await;

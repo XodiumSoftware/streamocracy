@@ -9,7 +9,7 @@ use serenity::prelude::Mentionable;
 use tracing::{error, info, warn};
 
 /// Metadata for active votekicks.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[allow(clippy::struct_field_names)]
 pub struct VotekickMetadata {
     /// Target user ID
@@ -18,6 +18,16 @@ pub struct VotekickMetadata {
     pub guild_id: GuildId,
     /// Voice channel the target was in
     pub channel_id: ChannelId,
+    /// Name of the votekick initiator
+    pub initiator_name: String,
+    /// Name of the target user
+    pub target_name: String,
+    /// Poll duration in seconds
+    pub duration_secs: u64,
+    /// How long result messages remain before deletion, in seconds
+    pub results_delete_delay_secs: u64,
+    /// Minimum yes votes needed for the votekick to pass
+    pub min_yes_votes: u32,
 }
 
 /// A poll for voting to kick a user from a voice channel.
@@ -39,7 +49,6 @@ pub struct VotekickPoll {
     /// Minimum yes votes needed for the votekick to pass
     pub min_yes_votes: u32,
 }
-
 impl VotekickPoll {
     /// Create a new votekick poll.
     #[allow(clippy::too_many_arguments)]
@@ -64,6 +73,23 @@ impl VotekickPoll {
             min_yes_votes,
         }
     }
+
+    /// Reconstruct a votekick poll from persisted metadata.
+    pub fn from_metadata(
+        metadata: &VotekickMetadata,
+        results_delete_delay_secs: u64,
+    ) -> VotekickPoll {
+        VotekickPoll::new(
+            metadata.initiator_name.clone(),
+            metadata.target_name.clone(),
+            metadata.duration_secs,
+            results_delete_delay_secs,
+            metadata.target_user_id,
+            metadata.guild_id,
+            metadata.channel_id,
+            metadata.min_yes_votes,
+        )
+    }
 }
 
 #[allow(clippy::too_many_lines)]
@@ -75,12 +101,17 @@ impl Poll for VotekickPoll {
             target_user_id: self.target_user_id,
             guild_id: self.guild_id,
             channel_id: self.channel_id,
+            initiator_name: self.initiator_name.clone(),
+            target_name: self.target_name.clone(),
+            duration_secs: self.duration_secs,
+            results_delete_delay_secs: self.results_delete_delay_secs,
+            min_yes_votes: self.min_yes_votes,
         })
     }
 
     /// Only users in the same voice channel as the target may vote.
     async fn is_eligible_voter(&self, ctx: &Context, user_id: UserId, info: &PollInfo) -> bool {
-        let Some(metadata) = info.votekick else {
+        let Some(ref metadata) = info.votekick else {
             return false;
         };
         let Some(guild) = ctx.cache.guild(metadata.guild_id) else {
@@ -127,7 +158,7 @@ impl Poll for VotekickPoll {
         info: PollInfo,
     ) {
         let total_votes = yes_votes + no_votes;
-        let Some(metadata) = info.votekick else {
+        let Some(ref metadata) = info.votekick else {
             warn!("No votekick metadata found");
             return;
         };
@@ -335,6 +366,13 @@ pub async fn start_votekick(
         "Votekick poll created for {} (message_id: {})",
         poll.target_name, message_id
     );
+
+    crate::polls::persist_active_poll(
+        message_id,
+        poll.metadata().expect("votekick metadata"),
+        duration_secs,
+    )
+    .await;
 
     schedule_poll_completion(poll, ctx.clone(), message_id, duration_secs).await;
 

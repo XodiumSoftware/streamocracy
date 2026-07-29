@@ -11,6 +11,7 @@ use anyhow::Context as AnyhowContext;
 use serenity::all::{Client, Context, EventHandler, GatewayIntents, Interaction, Ready};
 use tracing::{error, info};
 
+use crate::commands::get_commands;
 use crate::config::Config;
 use crate::utils::Utils;
 
@@ -29,12 +30,14 @@ impl EventHandler for Bot {
         info!("Bot is connected as {}", ready.user.name);
 
         let config_ref = &self.config;
-        let commands: Vec<_> = commands::get_commands()
+        let commands: Vec<_> = get_commands()
             .iter()
             .map(|cmd| cmd.register(config_ref))
             .collect();
 
         Utils::register_commands(&ctx, self.config.guild_id(), commands).await;
+
+        crate::polls::resume_polls(&ctx).await;
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {

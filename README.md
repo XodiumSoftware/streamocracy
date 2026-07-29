@@ -77,6 +77,7 @@ Configuration is loaded from environment variables. A `.env` file can be used fo
 | `RESULTS_DELETE_DELAY`      | No       | `10`    | Results message deletion delay in seconds           |
 | `MIN_VOTEKICK_YES_VOTES`    | No       | `2`     | Minimum ✅ votes needed for a votekick to pass        |
 | `VOTEKICK_RATE_LIMIT_SECS`  | No       | `60`    | Cooldown per initiator in the same guild/channel      |
+| `POLL_STATE_FILE`           | No       | `poll_state.json` | Path to active poll persistence file          |
 
 ### Quick start (from source)
 
