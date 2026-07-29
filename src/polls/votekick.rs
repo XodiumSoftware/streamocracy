@@ -3,7 +3,7 @@
 use crate::polls::{Poll, PollInfo, schedule_poll_completion, send_temporary_message};
 use anyhow::Context as AnyhowContext;
 use serenity::all::{
-    ChannelId, CommandInteraction, Context, CreateEmbed, GuildId, MessageId, UserId,
+    ChannelId, CommandInteraction, Context, CreateEmbed, GuildId, MessageId, Permissions, UserId,
 };
 use serenity::prelude::Mentionable;
 use tracing::{error, info, warn};
@@ -164,9 +164,29 @@ impl Poll for VotekickPoll {
             Ok(m) => m,
             Err(e) => {
                 error!("Failed to get target member for kick: {}", e);
+                self.send_results_message(
+                    ctx,
+                    channel_id,
+                    "📊 Votekick passed but I couldn't fetch the target member. Please verify my permissions.",
+                )
+                .await;
                 return;
             }
         };
+
+        let can_disconnect = Self::can_disconnect_member(ctx, guild_id, channel_id).await;
+        if !can_disconnect {
+            warn!("Bot lacks Move Members permission in guild {}", guild_id);
+            self.send_results_message(
+                ctx,
+                channel_id,
+                format!(
+                    "📊 Votekick passed (✅ {yes_votes} | ❌ {no_votes}) but I don't have permission to disconnect members. An admin needs to grant me **Move Members**.",
+                ),
+            )
+            .await;
+            return;
+        }
 
         let guild_cache = ctx.cache.guild(guild_id);
         let in_voice = guild_cache.is_some_and(|g| g.voice_states.contains_key(&target_user_id));
@@ -235,6 +255,30 @@ impl VotekickPoll {
         content: impl Into<String> + Send,
     ) {
         send_temporary_message(ctx, channel_id, content, self.results_delete_delay_secs).await;
+    }
+
+    /// Check whether the bot has permission to disconnect members in the channel.
+    async fn can_disconnect_member(
+        ctx: &Context,
+        guild_id: GuildId,
+        channel_id: ChannelId,
+    ) -> bool {
+        let bot_user_id = ctx.cache.current_user().id;
+        let Ok(bot_member) = guild_id.member(&ctx.http, bot_user_id).await else {
+            return false;
+        };
+
+        let permissions = {
+            let Some(guild) = ctx.cache.guild(guild_id) else {
+                return false;
+            };
+            let Some(channel) = guild.channels.get(&channel_id) else {
+                return false;
+            };
+            guild.user_permissions_in(channel, &bot_member)
+        };
+
+        permissions.contains(Permissions::MOVE_MEMBERS)
     }
 }
 

@@ -136,17 +136,6 @@ impl VotekickCommand {
             return Ok(());
         }
 
-        let Some(user_channel_id) = Self::get_user_voice_channel(ctx, guild_id, user.id) else {
-            warn!("{} tried votekick but is not in a voice channel", user.name);
-            Utils::ephemeral_response(
-                &ctx.http,
-                command,
-                "You must be in a voice channel to use this command.",
-            )
-            .await;
-            return Ok(());
-        };
-
         let target_user_id = command
             .data
             .options
