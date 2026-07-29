@@ -137,6 +137,7 @@ Configuration is loaded from environment variables. A `.env` file can be used fo
 | `DISCORD_TOKEN`             | Yes      | -       | Discord bot token from Developer Portal             |
 | `GUILD_ID`                  | No       | -       | Guild ID for instant command registration (testing) |
 | `LOG_LEVEL`                 | No       | `info`  | Log level filter (trace, debug, info, warn, error)  |
+| `LOG_FORMAT`                | No       | `pretty`| Log output format: `pretty` or `json`               |
 | `DEFAULT_VOTEKICK_DURATION` | No       | `60`    | Default votekick duration in seconds                |
 | `MIN_VOTEKICK_DURATION`     | No       | `10`    | Minimum votekick duration in seconds                |
 | `MAX_VOTEKICK_DURATION`     | No       | `300`   | Maximum votekick duration in seconds                |
