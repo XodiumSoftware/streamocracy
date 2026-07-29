@@ -28,9 +28,10 @@ impl EventHandler for Bot {
     async fn ready(&self, ctx: Context, ready: Ready) {
         info!("Bot is connected as {}", ready.user.name);
 
+        let config_ref = &self.config;
         let commands: Vec<_> = commands::get_commands()
             .iter()
-            .map(|cmd| cmd.register())
+            .map(|cmd| cmd.register(config_ref))
             .collect();
 
         Utils::register_commands(&ctx, self.config.guild_id(), commands).await;

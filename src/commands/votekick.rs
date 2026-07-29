@@ -15,7 +15,7 @@ impl SlashCommand for VotekickCommand {
         "votekick"
     }
 
-    fn register(&self) -> CreateCommand {
+    fn register(&self, config: &Config) -> CreateCommand {
         CreateCommand::new(self.name())
             .description("Start a votekick poll against a user")
             .add_option(
@@ -28,7 +28,9 @@ impl SlashCommand for VotekickCommand {
                     "duration",
                     "Poll duration in seconds",
                 )
-                .required(false),
+                .required(false)
+                .min_number_value(config.min_votekick_duration as f64)
+                .max_number_value(config.max_votekick_duration as f64),
             )
     }
 

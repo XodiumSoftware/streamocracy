@@ -15,7 +15,7 @@ impl SlashCommand for PingCommand {
         "ping"
     }
 
-    fn register(&self) -> CreateCommand {
+    fn register(&self, _config: &Config) -> CreateCommand {
         CreateCommand::new(self.name()).description("Check if the bot is responsive")
     }
 

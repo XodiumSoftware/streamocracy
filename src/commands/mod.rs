@@ -11,7 +11,9 @@ pub trait SlashCommand: Send + Sync {
     fn name(&self) -> &'static str;
 
     /// Register the command with Discord.
-    fn register(&self) -> CreateCommand;
+    ///
+    /// Configuration values may influence command options such as min/max ranges.
+    fn register(&self, config: &Config) -> CreateCommand;
 
     /// Execute the command.
     async fn run(&self, ctx: Context, command: CommandInteraction, config: Config);
