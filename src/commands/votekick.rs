@@ -43,6 +43,12 @@ impl SlashCommand for VotekickCommand {
     async fn run(&self, ctx: Context, command: CommandInteraction, config: Config) {
         if let Err(e) = self.run_internal(&ctx, &command, &config).await {
             error!("Votekick error: {}", e);
+            Utils::ephemeral_response(
+                &ctx.http,
+                &command,
+                "Failed to start the votekick. Please try again later.",
+            )
+            .await;
         }
     }
 }
@@ -145,7 +151,7 @@ impl VotekickCommand {
             duration,
             config.results_delete_delay,
         )
-        .await;
+        .await?;
 
         Ok(())
     }

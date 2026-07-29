@@ -1,6 +1,7 @@
 //! Votekick poll implementation
 
 use crate::polls::{Poll, schedule_poll_completion, send_temporary_message};
+use anyhow::Context as AnyhowContext;
 use serenity::all::{ChannelId, CommandInteraction, Context, CreateEmbed, UserId};
 use serenity::prelude::Mentionable;
 use std::collections::HashMap;
@@ -210,19 +211,15 @@ pub async fn start_votekick(
     channel_id: ChannelId,
     duration_secs: u64,
     results_delete_delay_secs: u64,
-) {
+) -> anyhow::Result<()> {
     let Some(guild_id) = command.guild_id else {
-        error!("Votekick used outside guild");
-        return;
+        anyhow::bail!("Votekick used outside guild");
     };
 
-    let target_member = match guild_id.member(&ctx.http, target_user_id).await {
-        Ok(m) => m,
-        Err(e) => {
-            error!("Failed to get target member: {}", e);
-            return;
-        }
-    };
+    let target_member = guild_id
+        .member(&ctx.http, target_user_id)
+        .await
+        .context("Failed to get target member")?;
 
     let poll = VotekickPoll::new(
         command.user.name.clone(),
@@ -231,25 +228,24 @@ pub async fn start_votekick(
         results_delete_delay_secs,
     );
 
-    match Poll::start(&poll, ctx, command).await {
-        Ok(message_id) => {
-            {
-                let mut active = ACTIVE_VOTEKICKS.lock().await;
-                active.insert(
-                    message_id,
-                    (target_user_id.get(), guild_id.get(), channel_id.get()),
-                );
-            }
+    let message_id = Poll::start(&poll, ctx, command)
+        .await
+        .context("Failed to start votekick poll")?;
 
-            info!(
-                "Votekick poll created for {} (message_id: {})",
-                poll.target_name, message_id
-            );
-
-            schedule_poll_completion(poll, ctx.clone(), message_id, duration_secs).await;
-        }
-        Err(e) => {
-            error!("Failed to start votekick poll: {}", e);
-        }
+    {
+        let mut active = ACTIVE_VOTEKICKS.lock().await;
+        active.insert(
+            message_id,
+            (target_user_id.get(), guild_id.get(), channel_id.get()),
+        );
     }
+
+    info!(
+        "Votekick poll created for {} (message_id: {})",
+        poll.target_name, message_id
+    );
+
+    schedule_poll_completion(poll, ctx.clone(), message_id, duration_secs).await;
+
+    Ok(())
 }
