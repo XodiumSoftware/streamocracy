@@ -71,8 +71,15 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Starting Streamocracy Discord Bot...");
 
-    if let Err(e) = client.start().await {
-        error!("Client error: {:?}", e);
+    tokio::select! {
+        res = client.start() => {
+            if let Err(e) = res {
+                error!("Client error: {:?}", e);
+            }
+        }
+        _ = tokio::signal::ctrl_c() => {
+            info!("Shutdown signal received, stopping bot...");
+        }
     }
 
     Ok(())
