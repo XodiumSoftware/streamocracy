@@ -54,7 +54,7 @@ pub trait Poll: Send + Sync {
     }
 
     /// Called when the poll ends with results.
-    /// yes_votes and no_votes are counts excluding the bot.
+    /// `yes_votes` and `no_votes` are counts excluding the bot.
     async fn on_complete(&self, ctx: &Context, message_id: u64, yes_votes: u32, no_votes: u32);
 
     /// Start the poll by sending the embed and adding reactions.
@@ -113,16 +113,15 @@ pub async fn schedule_poll_completion<P: Poll + 'static>(
     });
 }
 
-/// Complete a poll by counting votes and calling on_complete.
+/// Complete a poll by counting votes and calling `on_complete`.
 async fn complete_poll<P: Poll>(poll: &P, ctx: &Context, message_id: u64) {
     let poll_info = {
         let mut active = ACTIVE_POLLS.lock().await;
-        match active.remove(&message_id) {
-            Some(info) => info,
-            None => {
-                warn!("No active poll found for message {}", message_id);
-                return;
-            }
+        if let Some(info) = active.remove(&message_id) {
+            info
+        } else {
+            warn!("No active poll found for message {}", message_id);
+            return;
         }
     };
 

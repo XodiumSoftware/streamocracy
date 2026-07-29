@@ -197,7 +197,7 @@ This project uses GitHub Actions configured in `.github/workflows/rust.yml`.
 
 The workflow runs on pushes and pull requests to `main` and includes:
 
-- **Lint** — runs `cargo clippy --all-targets --all-features -- -D warnings` and `cargo fmt --all -- --check`
+- **Lint** — runs `cargo clippy --all-targets --all-features -- -W clippy::pedantic -D warnings` and `cargo fmt --all -- --check`
 - **Test** — runs `cargo test --all-features`
 - **Build** — builds a release binary and uploads it as an artifact
 - **Nightly Release** — creates/updates a `nightly` GitHub release with the binary (only on `main` or `workflow_dispatch`)

@@ -51,8 +51,7 @@ impl VotekickCommand {
         let user = &command.user;
         let guild_id = command
             .guild_id
-            .map(|id| id.to_string())
-            .unwrap_or_else(|| "DM".to_string());
+            .map_or_else(|| "DM".to_string(), |id| id.to_string());
 
         info!(
             "Command 'votekick' invoked by {} ({}) in {}",
@@ -78,30 +77,24 @@ impl VotekickCommand {
             .options
             .get(1)
             .and_then(|opt| opt.value.as_i64())
-            .map(|v| {
-                v.clamp(
-                    config.min_votekick_duration as i64,
-                    config.max_votekick_duration as i64,
-                ) as u64
-            })
-            .unwrap_or(config.default_votekick_duration);
+            .map_or(config.default_votekick_duration, |v| {
+                let v = u64::try_from(v.max(0)).unwrap_or(config.default_votekick_duration);
+                v.clamp(config.min_votekick_duration, config.max_votekick_duration)
+            });
 
-        let user_channel_id = match self.get_user_voice_channel(ctx, guild_id, user.id) {
-            Some(cid) => cid,
-            None => {
-                warn!("{} tried votekick but is not in a voice channel", user.name);
-                self.send_error(
-                    ctx,
-                    command,
-                    "You must be in a voice channel to use this command.",
-                )
-                .await;
-                return Ok(());
-            }
+        let Some(user_channel_id) = Self::get_user_voice_channel(ctx, guild_id, user.id) else {
+            warn!("{} tried votekick but is not in a voice channel", user.name);
+            self.send_error(
+                ctx,
+                command,
+                "You must be in a voice channel to use this command.",
+            )
+            .await;
+            return Ok(());
         };
 
         let (target_in_same_channel, target_screensharing) =
-            self.check_target_user(ctx, guild_id, target_user_id, user_channel_id);
+            Self::check_target_user(ctx, guild_id, target_user_id, user_channel_id);
 
         if !target_in_same_channel {
             warn!(
@@ -147,7 +140,6 @@ impl VotekickCommand {
 
     /// Get the voice channel ID for a user in a guild.
     fn get_user_voice_channel(
-        &self,
         ctx: &Context,
         guild_id: serenity::all::GuildId,
         user_id: UserId,
@@ -158,9 +150,8 @@ impl VotekickCommand {
     }
 
     /// Check if target user is in the same channel and screensharing.
-    /// Returns (in_same_channel, is_screensharing).
+    /// Returns (`in_same_channel`, `is_screensharing`).
     fn check_target_user(
-        &self,
         ctx: &Context,
         guild_id: serenity::all::GuildId,
         target_user_id: UserId,

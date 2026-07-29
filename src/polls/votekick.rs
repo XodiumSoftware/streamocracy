@@ -10,7 +10,7 @@ use tokio::sync::Mutex;
 use tracing::{error, info, warn};
 
 /// Metadata for active votekicks.
-/// (target_user_id, guild_id, channel_id)
+/// (`target_user_id`, `guild_id`, `channel_id`)
 type VotekickMetadata = (u64, u64, u64);
 
 /// Thread-safe storage for active votekick metadata.
@@ -40,6 +40,7 @@ impl VotekickPoll {
     }
 }
 
+#[allow(clippy::too_many_lines)]
 #[serenity::async_trait]
 impl Poll for VotekickPoll {
     fn title(&self) -> String {
@@ -72,12 +73,11 @@ impl Poll for VotekickPoll {
         let total_votes = yes_votes + no_votes;
         let (target_user_id, guild_id, channel_id) = {
             let mut active = ACTIVE_VOTEKICKS.lock().await;
-            match active.remove(&message_id) {
-                Some(info) => info,
-                None => {
-                    warn!("No votekick metadata found for message {}", message_id);
-                    return;
-                }
+            if let Some(info) = active.remove(&message_id) {
+                info
+            } else {
+                warn!("No votekick metadata found for message {}", message_id);
+                return;
             }
         };
 
@@ -94,8 +94,7 @@ impl Poll for VotekickPoll {
                 ctx,
                 channel_id,
                 format!(
-                    "📊 Votekick results: **Did not pass**\nNeed at least 2 ✅ votes.\nResults: ✅ {} | ❌ {} (Total votes: {})",
-                    yes_votes, no_votes, total_votes
+                    "📊 Votekick results: **Did not pass**\nNeed at least 2 ✅ votes.\nResults: ✅ {yes_votes} | ❌ {no_votes} (Total votes: {total_votes})",
                 ),
                 10,
             )
@@ -112,8 +111,7 @@ impl Poll for VotekickPoll {
                 ctx,
                 channel_id,
                 format!(
-                    "📊 Votekick results: **Did not pass**\n✅ {} | ❌ {} (Total votes: {})\n\nYes votes needed to exceed No votes.",
-                    yes_votes, no_votes, total_votes
+                    "📊 Votekick results: **Did not pass**\n✅ {yes_votes} | ❌ {no_votes} (Total votes: {total_votes})\n\nYes votes needed to exceed No votes.",
                 ),
                 10,
             )
@@ -135,9 +133,7 @@ impl Poll for VotekickPoll {
         };
 
         let guild_cache = ctx.cache.guild(guild_id);
-        let in_voice = guild_cache
-            .map(|g| g.voice_states.contains_key(&target_user_id))
-            .unwrap_or(false);
+        let in_voice = guild_cache.is_some_and(|g| g.voice_states.contains_key(&target_user_id));
 
         if !in_voice {
             info!(
@@ -206,12 +202,9 @@ pub async fn start_votekick(
     channel_id: ChannelId,
     duration_secs: u64,
 ) {
-    let guild_id = match command.guild_id {
-        Some(id) => id,
-        None => {
-            error!("Votekick used outside guild");
-            return;
-        }
+    let Some(guild_id) = command.guild_id else {
+        error!("Votekick used outside guild");
+        return;
     };
 
     let target_member = match guild_id.member(&ctx.http, target_user_id).await {

@@ -32,7 +32,7 @@ impl Utils {
     }
 
     /// Register slash commands with Discord
-    /// If guild_id is provided, registers commands for that guild (instant update)
+    /// If `guild_id` is provided, registers commands for that guild (instant update)
     /// Otherwise registers global commands (can take up to 1 hour to propagate)
     pub async fn register_commands(
         ctx: &Context,
