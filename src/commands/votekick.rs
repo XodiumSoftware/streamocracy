@@ -1,8 +1,9 @@
 use crate::commands::SlashCommand;
 use crate::config::Config;
+use crate::utils::Utils;
 use serenity::all::{
     ChannelId, CommandInteraction, CommandOptionType, Context, CreateCommand, CreateCommandOption,
-    CreateInteractionResponse, CreateInteractionResponseMessage, UserId,
+    UserId,
 };
 use tracing::{error, info, warn};
 
@@ -67,8 +68,12 @@ impl VotekickCommand {
 
         let Some(guild_id) = command.guild_id else {
             warn!("votekick used in DM by {}", user.name);
-            self.send_error(ctx, command, "This command can only be used in a server.")
-                .await;
+            Utils::ephemeral_response(
+                &ctx.http,
+                command,
+                "This command can only be used in a server.",
+            )
+            .await;
             return Ok(());
         };
 
@@ -90,8 +95,8 @@ impl VotekickCommand {
 
         let Some(user_channel_id) = Self::get_user_voice_channel(ctx, guild_id, user.id) else {
             warn!("{} tried votekick but is not in a voice channel", user.name);
-            self.send_error(
-                ctx,
+            Utils::ephemeral_response(
+                &ctx.http,
                 command,
                 "You must be in a voice channel to use this command.",
             )
@@ -107,8 +112,8 @@ impl VotekickCommand {
                 "Target user {} is not in the same voice channel as {}",
                 target_user_id, user.name
             );
-            self.send_error(
-                ctx,
+            Utils::ephemeral_response(
+                &ctx.http,
                 command,
                 "The target user must be in the same voice channel as you.",
             )
@@ -118,8 +123,8 @@ impl VotekickCommand {
 
         if !target_screensharing {
             warn!("Target user {} is not screensharing", target_user_id);
-            self.send_error(
-                ctx,
+            Utils::ephemeral_response(
+                &ctx.http,
                 command,
                 "The target user must be screensharing to start a votekick.",
             )
@@ -182,23 +187,6 @@ impl VotekickCommand {
         let in_same = vs.channel_id == Some(user_channel_id);
         let screensharing = vs.self_stream.unwrap_or(false);
         (in_same, screensharing)
-    }
-
-    /// Send an ephemeral error response to the user.
-    async fn send_error(&self, ctx: &Context, command: &CommandInteraction, message: &str) {
-        if let Err(e) = command
-            .create_response(
-                &ctx.http,
-                CreateInteractionResponse::Message(
-                    CreateInteractionResponseMessage::new()
-                        .content(message)
-                        .ephemeral(true),
-                ),
-            )
-            .await
-        {
-            error!("Failed to send error response: {}", e);
-        }
     }
 }
 
