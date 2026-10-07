@@ -139,7 +139,7 @@ jobs:
 
       - id: download_artifacts
         name: Download Artefacts
-        uses: actions/download-artifact@v8.0.1
+        uses: actions/download-artifact@v8.0.2
         with:
           pattern: "${{ needs.build.outputs.NAME }}-*"
           path: dist/
@@ -188,7 +188,7 @@ jobs:
 
       - id: download_artifact
         name: Download Binary Artifact
-        uses: actions/download-artifact@v8.0.1
+        uses: actions/download-artifact@v8.0.2
         with:
           name: ${{ needs.build.outputs.NAME }}-v${{ needs.build.outputs.VERSION }}-linux-x64
           path: ./dist/
