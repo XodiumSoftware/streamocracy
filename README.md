@@ -23,6 +23,7 @@
 [![Issues][issues_shield_url]][issues_url]
 [![License][license_shield_url]][license_url]
 [![Docs][docs_shield_url]][docs_url]
+[![Deps.rs][deps_shield_url]][deps_url]
 </div>
 
 ## Table of Contents
@@ -49,7 +50,7 @@
 Streamocracy is a Discord bot driven entirely by slash commands. After inviting it to your server, type `/` in any channel to see the available commands.
 
 | Command     | Arguments                           | Description                                               |
-|-------------|-------------------------------------|-----------------------------------------------------------|
+| ----------- | ----------------------------------- | --------------------------------------------------------- |
 | `/ping`     | None                                | Responds with `Pong! 🏓` to verify the bot is responsive  |
 | `/votekick` | `user` (required), `duration` (opt) | Start a votekick poll against a user who is screensharing |
 
@@ -65,19 +66,19 @@ Streamocracy is a Discord bot driven entirely by slash commands. After inviting 
 
 Configuration is loaded from environment variables. A `.env` file can be used for local development.
 
-| Variable                    | Required | Default | Description                                         |
-|-----------------------------|----------|---------|-----------------------------------------------------|
-| `DISCORD_TOKEN`             | Yes      | -       | Discord bot token from Developer Portal             |
-| `GUILD_ID`                  | No       | -       | Guild ID for instant command registration (testing) |
-| `LOG_LEVEL`                 | No       | `info`  | Log level filter (trace, debug, info, warn, error)  |
-| `LOG_FORMAT`                | No       | `pretty`| Log output format: `pretty` or `json`               |
-| `DEFAULT_VOTEKICK_DURATION` | No       | `60`    | Default votekick duration in seconds                |
-| `MIN_VOTEKICK_DURATION`     | No       | `10`    | Minimum votekick duration in seconds                |
-| `MAX_VOTEKICK_DURATION`     | No       | `300`   | Maximum votekick duration in seconds                |
-| `RESULTS_DELETE_DELAY`      | No       | `10`    | Results message deletion delay in seconds           |
-| `MIN_VOTEKICK_YES_VOTES`    | No       | `2`     | Minimum ✅ votes needed for a votekick to pass        |
-| `VOTEKICK_RATE_LIMIT_SECS`  | No       | `60`    | Cooldown per initiator in the same guild/channel      |
-| `POLL_STATE_FILE`           | No       | `poll_state.json` | Path to active poll persistence file          |
+| Variable                    | Required | Default           | Description                                         |
+| --------------------------- | -------- | ----------------- | --------------------------------------------------- |
+| `DISCORD_TOKEN`             | Yes      | -                 | Discord bot token from Developer Portal             |
+| `GUILD_ID`                  | No       | -                 | Guild ID for instant command registration (testing) |
+| `LOG_LEVEL`                 | No       | `info`            | Log level filter (trace, debug, info, warn, error)  |
+| `LOG_FORMAT`                | No       | `pretty`          | Log output format: `pretty` or `json`               |
+| `DEFAULT_VOTEKICK_DURATION` | No       | `60`              | Default votekick duration in seconds                |
+| `MIN_VOTEKICK_DURATION`     | No       | `10`              | Minimum votekick duration in seconds                |
+| `MAX_VOTEKICK_DURATION`     | No       | `300`             | Maximum votekick duration in seconds                |
+| `RESULTS_DELETE_DELAY`      | No       | `10`              | Results message deletion delay in seconds           |
+| `MIN_VOTEKICK_YES_VOTES`    | No       | `2`               | Minimum ✅ votes needed for a votekick to pass      |
+| `VOTEKICK_RATE_LIMIT_SECS`  | No       | `60`              | Cooldown per initiator in the same guild/channel    |
+| `POLL_STATE_FILE`           | No       | `poll_state.json` | Path to active poll persistence file                |
 
 ### Quick start (from source)
 
@@ -99,27 +100,17 @@ For Docker Compose, binary releases, and a full setup walkthrough, see [`GUIDE.m
 <p align="right"><a href="#readme-top">▲</a></p>
 
 [built_with_shield_url]: https://skillicons.dev/icons?i=rust,github
-
 [built_with_url]: https://skillicons.dev
-
 [code_of_conduct_url]: https://github.com/XodiumSoftware/streamocracy?tab=coc-ov-file
-
 [contributing_url]: https://github.com/XodiumSoftware/streamocracy?tab=contributing-ov-file
-
 [contributors_shield_url]: https://img.shields.io/github/contributors/XodiumSoftware/streamocracy?style=for-the-badge&color=blue
-
 [contributors_url]: https://github.com/XodiumSoftware/streamocracy/graphs/contributors
-
 [issues_shield_url]: https://img.shields.io/github/issues/XodiumSoftware/streamocracy?style=for-the-badge&color=yellow
-
 [issues_url]: https://github.com/XodiumSoftware/streamocracy/issues
-
 [license_shield_url]: https://img.shields.io/github/license/XodiumSoftware/streamocracy?style=for-the-badge&color=green
-
 [license_url]: https://github.com/XodiumSoftware/streamocracy?tab=AGPL-3.0-1-ov-file
-
 [docs_shield_url]: https://img.shields.io/badge/docs-github--pages-blue?style=for-the-badge
-
 [docs_url]: https://streamocracy.xodium.org/
-
+[deps_shield_url]: https://deps.rs/repo/github/XodiumSoftware/streamocracy/status.svg?style=for-the-badge
+[deps_url]: https://deps.rs/repo/github/XodiumSoftware/streamocracy
 [security_url]: https://github.com/XodiumSoftware/streamocracy?tab=security-ov-file
