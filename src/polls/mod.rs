@@ -30,6 +30,9 @@ type ActivePolls = Arc<Mutex<HashMap<MessageId, PollInfo>>>;
 static ACTIVE_POLLS: LazyLock<ActivePolls> = LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
 /// Trait for reaction-based polls.
+// The `double_must_use` lint misfires on the `async_trait` expansion, which adds
+// `#[must_use]` to methods returning `Pin<Box<dyn Future>>` (already `must_use`).
+#[allow(clippy::double_must_use)]
 #[serenity::async_trait]
 pub trait Poll: Send + Sync {
     /// The poll title displayed in the embed.
