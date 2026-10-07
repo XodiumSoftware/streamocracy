@@ -22,7 +22,6 @@
 [![Contributors][contributors_shield_url]][contributors_url]
 [![Issues][issues_shield_url]][issues_url]
 [![License][license_shield_url]][license_url]
-[![Docs][docs_shield_url]][docs_url]
 [![Deps.rs][deps_shield_url]][deps_url]
 </div>
 
@@ -109,8 +108,6 @@ For Docker Compose, binary releases, and a full setup walkthrough, see [`GUIDE.m
 [issues_url]: https://github.com/XodiumSoftware/streamocracy/issues
 [license_shield_url]: https://img.shields.io/github/license/XodiumSoftware/streamocracy?style=for-the-badge&color=green
 [license_url]: https://github.com/XodiumSoftware/streamocracy?tab=AGPL-3.0-1-ov-file
-[docs_shield_url]: https://img.shields.io/badge/docs-github--pages-blue?style=for-the-badge
-[docs_url]: https://streamocracy.xodium.org/
 [deps_shield_url]: https://deps.rs/repo/github/XodiumSoftware/streamocracy/status.svg?style=for-the-badge
 [deps_url]: https://deps.rs/repo/github/XodiumSoftware/streamocracy
 [security_url]: https://github.com/XodiumSoftware/streamocracy?tab=security-ov-file
